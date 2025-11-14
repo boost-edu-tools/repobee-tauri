@@ -170,7 +170,7 @@ impl LocalAPI {
 
     /// Generate a repository URL
     fn repo_url(&self, repo_name: &str) -> String {
-        format!("{}/{}/{}", self.base_url, self.org_name, repo_name)
+        format!("{}/orgs/{}/{}", self.base_url, self.org_name, repo_name)
     }
 }
 
@@ -293,7 +293,7 @@ impl PlatformAPI for LocalAPI {
         let repo = Repo::new(name.to_string(), desc, private, self.repo_url(name));
 
         // Create the actual git repository directory (as a bare repo)
-        let repo_dir = self.base_dir.join(&self.org_name).join(name);
+        let repo_dir = self.base_dir.join("orgs").join(&self.org_name).join(name);
         if !repo_dir.exists() {
             git2::Repository::init_bare(&repo_dir)
                 .map_err(|e| PlatformError::GitError(e))?;

@@ -22,6 +22,10 @@ target/
 repobee-core/test-*/
 repobee-cli/test-*/
 
+# RepoBee work directory
+repobee-work/
+src-tauri/repobee-work/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

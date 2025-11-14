@@ -313,7 +313,12 @@ pub async fn setup_student_repos<P: PlatformAPI>(
     println!("\nPushing template content to student repositories...");
     for student_repo in &newly_created {
         // Find the corresponding template
-        let template_name = student_repo.name.split('-').skip(1).collect::<Vec<_>>().join("-");
+        // Student repo name format: {team-name}-{template-name}
+        // Extract template name (last component after last hyphen before team name)
+        let template_name = student_repo.name
+            .split('-')
+            .last()
+            .unwrap_or(&student_repo.name);
         if let Some(template) = templates.iter().find(|t| t.name == template_name) {
             if let Some(template_path) = &template.path {
                 match push_to_repo(template_path, &student_repo.url, token) {
