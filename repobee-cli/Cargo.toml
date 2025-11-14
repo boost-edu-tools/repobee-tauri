@@ -1,0 +1,23 @@
+[package]
+name = "repobee-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Core library
+repobee-core = { path = "../repobee-core" }
+
+# CLI framework
+clap.workspace = true
+
+# Async runtime
+tokio.workspace = true
+
+# Error handling
+anyhow.workspace = true
+
+# Serialization
+serde_json.workspace = true

@@ -1,0 +1,31 @@
+[package]
+name = "repobee-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Async runtime
+tokio.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Error handling
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Git operations
+git2.workspace = true
+
+# HTTP client for platform APIs
+reqwest.workspace = true
+
+# Date/time for timestamps
+chrono.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
