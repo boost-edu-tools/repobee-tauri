@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
@@ -45,6 +45,7 @@ interface CanvasFormState {
 type TabType = "canvas" | "repo";
 
 function App() {
+  const settingsLoadedRef = useRef(false);
   const [activeTab, setActiveTab] = useState<TabType>("canvas");
   const [configLocked, setConfigLocked] = useState(true);
   const [optionsLocked, setOptionsLocked] = useState(true);
@@ -91,54 +92,74 @@ function App() {
     },
   });
 
-  // Load settings on startup
+  // Load settings on startup (only once, even with React StrictMode)
   useEffect(() => {
-    loadSettingsFromDisk();
+    if (!settingsLoadedRef.current) {
+      settingsLoadedRef.current = true;
+      loadSettingsFromDisk();
+    }
   }, []);
 
   const loadSettingsFromDisk = async () => {
     try {
+      // Check if settings file exists first
+      const fileExists = await invoke<boolean>("settings_exist");
+
       const settings = await invoke<any>("load_settings");
       console.log("Loaded settings:", settings);
 
+      // Check if settings have the expected structure
+      if (!settings || typeof settings !== 'object') {
+        throw new Error("Invalid settings structure received from backend");
+      }
+
+      // Settings are flattened (due to #[serde(flatten)] in Rust)
+      // All fields are at the top level
+      const isFlattened = 'canvas_base_url' in settings;
+      const common = isFlattened ? settings : settings.common;
+
+      if (!common) {
+        throw new Error("Settings missing required fields");
+      }
+
       // Populate Canvas form from settings
       setCanvasForm({
-        baseUrl: settings.common.canvas_base_url || "https://canvas.tue.nl",
-        customUrl: settings.common.canvas_custom_url || "",
-        urlOption: settings.common.canvas_url_option || "TUE",
-        accessToken: settings.common.canvas_access_token || "",
-        courseId: settings.common.canvas_course_id || "",
-        courseName: settings.common.canvas_course_name || "",
-        yamlFile: settings.common.canvas_yaml_file || "students.yaml",
-        infoFileFolder: settings.common.canvas_info_folder || "",
-        csvFile: settings.common.canvas_csv_file || "student-info.csv",
-        xlsxFile: settings.common.canvas_xlsx_file || "student-info.xlsx",
-        memberOption: settings.common.canvas_member_option || "(email, gitid)",
-        includeGroup: settings.common.canvas_include_group ?? true,
-        includeMember: settings.common.canvas_include_member ?? true,
-        includeInitials: settings.common.canvas_include_initials ?? false,
-        fullGroups: settings.common.canvas_full_groups ?? true,
-        csv: settings.common.canvas_output_csv ?? false,
-        xlsx: settings.common.canvas_output_xlsx ?? false,
-        yaml: settings.common.canvas_output_yaml ?? true,
+        baseUrl: common.canvas_base_url || "https://canvas.tue.nl",
+        customUrl: common.canvas_custom_url || "",
+        urlOption: common.canvas_url_option || "TUE",
+        accessToken: common.canvas_access_token || "",
+        courseId: common.canvas_course_id || "",
+        courseName: common.canvas_course_name || "",
+        yamlFile: common.canvas_yaml_file || "students.yaml",
+        infoFileFolder: common.canvas_info_folder || "",
+        csvFile: common.canvas_csv_file || "student-info.csv",
+        xlsxFile: common.canvas_xlsx_file || "student-info.xlsx",
+        memberOption: common.canvas_member_option || "(email, gitid)",
+        includeGroup: common.canvas_include_group ?? true,
+        includeMember: common.canvas_include_member ?? true,
+        includeInitials: common.canvas_include_initials ?? false,
+        fullGroups: common.canvas_full_groups ?? true,
+        csv: common.canvas_output_csv ?? false,
+        xlsx: common.canvas_output_xlsx ?? false,
+        yaml: common.canvas_output_yaml ?? true,
       });
 
       // Populate Repo form from settings
       setForm({
-        accessToken: settings.common.git_access_token || "",
-        user: settings.common.git_user || "",
-        baseUrl: settings.common.git_base_url || "https://gitlab.tue.nl",
-        studentReposGroup: settings.common.git_student_repos_group || "",
-        templateGroup: settings.common.git_template_group || "",
-        yamlFile: settings.common.yaml_file || "students.yaml",
-        targetFolder: settings.common.target_folder || "",
-        assignments: settings.common.assignments || "",
-        directoryLayout: (settings.common.directory_layout || "flat") as "by-team" | "flat" | "by-task",
+        accessToken: common.git_access_token || "",
+        user: common.git_user || "",
+        baseUrl: common.git_base_url || "https://gitlab.tue.nl",
+        studentReposGroup: common.git_student_repos_group || "",
+        templateGroup: common.git_template_group || "",
+        yamlFile: common.yaml_file || "students.yaml",
+        targetFolder: common.target_folder || "",
+        assignments: common.assignments || "",
+        directoryLayout: (common.directory_layout || "flat") as "by-team" | "flat" | "by-task",
         logLevels: {
-          info: settings.common.log_info ?? true,
-          debug: settings.common.log_debug ?? false,
-          warning: settings.common.log_warning ?? true,
-          error: settings.common.log_error ?? true,
+          info: common.log_info ?? true,
+          debug: common.log_debug ?? false,
+          warning: common.log_warning ?? true,
+          error: common.log_error ?? true,
         },
       });
 
@@ -147,10 +168,20 @@ function App() {
       setConfigLocked(settings.config_locked ?? true);
       setOptionsLocked(settings.options_locked ?? true);
 
-      appendOutput("✓ Settings loaded successfully");
+      // Show appropriate message based on whether file existed
+      if (fileExists) {
+        appendOutput("✓ Settings loaded from file");
+      } else {
+        appendOutput("⚠ Settings file not found, using defaults");
+        appendOutput("  Click 'Save Settings' to create a settings file");
+      }
     } catch (error) {
       console.error("Failed to load settings:", error);
-      appendOutput(`⚠ Using default settings (${error})`);
+
+      // User-friendly error message (inspired by gitinspectorgui)
+      appendOutput("⚠ Cannot load settings file, using default settings");
+      appendOutput("  Error: " + error);
+      appendOutput("  Click 'Save Settings' to create a valid settings file");
     }
   };
 

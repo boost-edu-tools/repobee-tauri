@@ -72,10 +72,10 @@ impl SettingsManager {
     }
 
     /// Load settings from disk
+    /// Returns default settings if file doesn't exist (no error)
     pub fn load(&self) -> Result<GuiSettings> {
         if !self.settings_file.exists() {
-            // File doesn't exist, return defaults
-            eprintln!("Settings file not found, using defaults: {}", self.settings_file.display());
+            // File doesn't exist, return defaults silently
             return Ok(GuiSettings::default());
         }
 
@@ -84,29 +84,22 @@ impl SettingsManager {
 
         // Parse as generic JSON first
         let json_value: Value = serde_json::from_str(&contents)
-            .map_err(|e| {
-                eprintln!("Failed to parse settings file as JSON: {}", e);
-                eprintln!("Using defaults instead");
-                return PlatformError::Other(format!("Invalid JSON in settings file: {}", e));
-            })?;
+            .map_err(|e| PlatformError::Other(format!("Invalid JSON in settings file: {}", e)))?;
 
         // Validate against schema
         let validation_errors = self.validate_settings(&json_value)?;
         if !validation_errors.is_empty() {
-            eprintln!("Settings validation errors:");
-            for error in &validation_errors {
-                eprintln!("  - {}", error);
-            }
-            eprintln!("Attempting to use settings anyway (with defaults for invalid fields)");
+            // Return error with validation details
+            let error_msg = format!(
+                "Settings validation errors:\n{}",
+                validation_errors.join("\n")
+            );
+            return Err(PlatformError::Other(error_msg));
         }
 
-        // Deserialize to GuiSettings (using defaults for missing/invalid fields)
+        // Deserialize to GuiSettings
         let settings: GuiSettings = serde_json::from_value(json_value)
-            .map_err(|e| {
-                eprintln!("Failed to deserialize settings: {}", e);
-                eprintln!("Using defaults instead");
-                return PlatformError::Other(format!("Invalid settings structure: {}", e));
-            })?;
+            .map_err(|e| PlatformError::Other(format!("Invalid settings structure: {}", e)))?;
 
         Ok(settings)
     }

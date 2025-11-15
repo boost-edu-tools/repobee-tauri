@@ -120,6 +120,15 @@ async fn get_settings_path() -> Result<String, String> {
     Ok(manager.settings_file_path().to_string_lossy().to_string())
 }
 
+/// Check if settings file exists
+#[tauri::command]
+async fn settings_exist() -> Result<bool, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    Ok(manager.settings_exist())
+}
+
 // ===== Canvas Commands =====
 
 /// Verify Canvas course credentials and fetch course information
@@ -411,6 +420,7 @@ pub fn run() {
             save_settings,
             reset_settings,
             get_settings_path,
+            settings_exist,
             verify_canvas_course,
             generate_canvas_files,
             verify_config,
