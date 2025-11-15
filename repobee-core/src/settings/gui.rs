@@ -1,8 +1,9 @@
 use super::common::CommonSettings;
 use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
 
 /// GUI-specific settings (extends CommonSettings)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GuiSettings {
     /// Common settings shared with CLI
     #[serde(flatten)]

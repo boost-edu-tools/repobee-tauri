@@ -31,5 +31,9 @@ chrono.workspace = true
 # Platform-specific directories
 dirs = "5"
 
+# JSON Schema generation and validation
+schemars = "0.8"
+jsonschema = "0.18"
+
 [dev-dependencies]
 tempfile.workspace = true

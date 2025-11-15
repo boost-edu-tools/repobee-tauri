@@ -1,5 +1,7 @@
 use super::gui::GuiSettings;
 use crate::error::{PlatformError, Result};
+use schemars::schema_for;
+use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
@@ -47,6 +49,28 @@ impl SettingsManager {
         Ok(config_dir)
     }
 
+    /// Validate JSON data against GuiSettings schema
+    fn validate_settings(&self, json_value: &Value) -> Result<Vec<String>> {
+        // Generate schema for GuiSettings
+        let schema = schema_for!(GuiSettings);
+        let schema_json = serde_json::to_value(&schema)
+            .map_err(|e| PlatformError::Other(format!("Failed to serialize schema: {}", e)))?;
+
+        // Compile the schema
+        let compiled = jsonschema::JSONSchema::compile(&schema_json)
+            .map_err(|e| PlatformError::Other(format!("Failed to compile schema: {}", e)))?;
+
+        // Validate the JSON
+        let mut errors = Vec::new();
+        if let Err(validation_errors) = compiled.validate(json_value) {
+            for error in validation_errors {
+                errors.push(format!("{} at {}", error, error.instance_path));
+            }
+        }
+
+        Ok(errors)
+    }
+
     /// Load settings from disk
     pub fn load(&self) -> Result<GuiSettings> {
         if !self.settings_file.exists() {
@@ -58,12 +82,30 @@ impl SettingsManager {
         let contents = fs::read_to_string(&self.settings_file)
             .map_err(|e| PlatformError::Other(format!("Failed to read settings file: {}", e)))?;
 
-        let settings: GuiSettings = serde_json::from_str(&contents)
+        // Parse as generic JSON first
+        let json_value: Value = serde_json::from_str(&contents)
             .map_err(|e| {
-                eprintln!("Failed to parse settings file: {}", e);
+                eprintln!("Failed to parse settings file as JSON: {}", e);
                 eprintln!("Using defaults instead");
-                // Return default settings if parsing fails
-                return PlatformError::Other(format!("Invalid settings file, using defaults: {}", e));
+                return PlatformError::Other(format!("Invalid JSON in settings file: {}", e));
+            })?;
+
+        // Validate against schema
+        let validation_errors = self.validate_settings(&json_value)?;
+        if !validation_errors.is_empty() {
+            eprintln!("Settings validation errors:");
+            for error in &validation_errors {
+                eprintln!("  - {}", error);
+            }
+            eprintln!("Attempting to use settings anyway (with defaults for invalid fields)");
+        }
+
+        // Deserialize to GuiSettings (using defaults for missing/invalid fields)
+        let settings: GuiSettings = serde_json::from_value(json_value)
+            .map_err(|e| {
+                eprintln!("Failed to deserialize settings: {}", e);
+                eprintln!("Using defaults instead");
+                return PlatformError::Other(format!("Invalid settings structure: {}", e));
             })?;
 
         Ok(settings)
@@ -71,6 +113,19 @@ impl SettingsManager {
 
     /// Save settings to disk
     pub fn save(&self, settings: &GuiSettings) -> Result<()> {
+        // Validate settings before saving
+        let json_value = serde_json::to_value(settings)
+            .map_err(|e| PlatformError::Other(format!("Failed to serialize settings: {}", e)))?;
+
+        let validation_errors = self.validate_settings(&json_value)?;
+        if !validation_errors.is_empty() {
+            let error_msg = format!(
+                "Settings validation failed:\n{}",
+                validation_errors.join("\n")
+            );
+            return Err(PlatformError::Other(error_msg));
+        }
+
         let json = serde_json::to_string_pretty(settings)
             .map_err(|e| PlatformError::Other(format!("Failed to serialize settings: {}", e)))?;
 
@@ -78,6 +133,13 @@ impl SettingsManager {
             .map_err(|e| PlatformError::Other(format!("Failed to write settings file: {}", e)))?;
 
         Ok(())
+    }
+
+    /// Get the JSON Schema for GuiSettings
+    pub fn get_schema() -> Result<Value> {
+        let schema = schema_for!(GuiSettings);
+        serde_json::to_value(&schema)
+            .map_err(|e| PlatformError::Other(format!("Failed to serialize schema: {}", e)))
     }
 
     /// Reset settings to defaults
@@ -135,5 +197,60 @@ mod tests {
 
         assert_eq!(settings.common.canvas_base_url, deserialized.common.canvas_base_url);
         assert_eq!(settings.active_tab, deserialized.active_tab);
+    }
+
+    #[test]
+    fn test_schema_generation() {
+        let schema = SettingsManager::get_schema();
+        assert!(schema.is_ok());
+        let schema_value = schema.unwrap();
+        assert!(schema_value.is_object());
+    }
+
+    #[test]
+    fn test_valid_settings_validation() {
+        let manager = SettingsManager::new().unwrap();
+        let settings = GuiSettings::default();
+        let json_value = serde_json::to_value(&settings).unwrap();
+
+        let errors = manager.validate_settings(&json_value).unwrap();
+        assert!(errors.is_empty(), "Default settings should be valid");
+    }
+
+    #[test]
+    fn test_invalid_settings_validation() {
+        let manager = SettingsManager::new().unwrap();
+
+        // Create invalid JSON with wrong types
+        let invalid_json = serde_json::json!({
+            "common": {
+                "canvas_base_url": 12345,  // Should be string
+                "log_info": "not a boolean"  // Should be boolean
+            },
+            "active_tab": "canvas",
+            "window_width": "not a number"  // Should be number
+        });
+
+        let errors = manager.validate_settings(&invalid_json).unwrap();
+        assert!(!errors.is_empty(), "Invalid settings should produce validation errors");
+    }
+
+    #[test]
+    fn test_save_with_validation() {
+        use tempfile::TempDir;
+
+        // Create a temporary directory for testing
+        let temp_dir = TempDir::new().unwrap();
+        let settings_file = temp_dir.path().join("repobee.json");
+
+        let manager = SettingsManager {
+            config_dir: temp_dir.path().to_path_buf(),
+            settings_file: settings_file.clone(),
+        };
+
+        // Valid settings should save successfully
+        let valid_settings = GuiSettings::default();
+        assert!(manager.save(&valid_settings).is_ok());
+        assert!(settings_file.exists());
     }
 }

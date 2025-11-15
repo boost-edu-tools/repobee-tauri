@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
 
 /// Common settings shared between GUI and CLI
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CommonSettings {
     // ===== Canvas Settings =====
     #[serde(default = "defaults::canvas_base_url")]
