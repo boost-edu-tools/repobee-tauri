@@ -28,5 +28,8 @@ reqwest.workspace = true
 # Date/time for timestamps
 chrono.workspace = true
 
+# Platform-specific directories
+dirs = "5"
+
 [dev-dependencies]
 tempfile.workspace = true

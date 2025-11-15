@@ -2,6 +2,7 @@ use repobee_core::{
     Platform, PlatformAPI, StudentTeam,
     CanvasClient, MemberOption, YamlConfig,
     generate_repobee_yaml, write_yaml_file, write_csv_file,
+    GuiSettings, SettingsManager,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -71,6 +72,55 @@ struct CommandResult {
     message: String,
     details: Option<String>,
 }
+
+// ===== Settings Commands =====
+
+/// Load settings from disk
+#[tauri::command]
+async fn load_settings() -> Result<GuiSettings, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    let settings = manager.load()
+        .map_err(|e| format!("Failed to load settings: {}", e))?;
+
+    Ok(settings)
+}
+
+/// Save settings to disk
+#[tauri::command]
+async fn save_settings(settings: GuiSettings) -> Result<(), String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager.save(&settings)
+        .map_err(|e| format!("Failed to save settings: {}", e))?;
+
+    Ok(())
+}
+
+/// Reset settings to defaults
+#[tauri::command]
+async fn reset_settings() -> Result<GuiSettings, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    let settings = manager.reset()
+        .map_err(|e| format!("Failed to reset settings: {}", e))?;
+
+    Ok(settings)
+}
+
+/// Get settings file path
+#[tauri::command]
+async fn get_settings_path() -> Result<String, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    Ok(manager.settings_file_path().to_string_lossy().to_string())
+}
+
+// ===== Canvas Commands =====
 
 /// Verify Canvas course credentials and fetch course information
 #[tauri::command]
@@ -357,6 +407,10 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            load_settings,
+            save_settings,
+            reset_settings,
+            get_settings_path,
             verify_canvas_course,
             generate_canvas_files,
             verify_config,

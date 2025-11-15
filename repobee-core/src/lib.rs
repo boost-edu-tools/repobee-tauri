@@ -6,6 +6,7 @@
 pub mod canvas;
 pub mod error;
 pub mod platform;
+pub mod settings;
 pub mod setup;
 pub mod types;
 
@@ -21,3 +22,6 @@ pub use canvas::{
     CanvasGroupMembership, CanvasEnrollment, StudentInfo, YamlConfig, MemberOption,
     generate_repobee_yaml, write_yaml_file, write_csv_file,
 };
+
+// Settings re-exports
+pub use settings::{CommonSettings, GuiSettings, SettingsManager};

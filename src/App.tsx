@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
@@ -90,6 +90,130 @@ function App() {
       error: true,
     },
   });
+
+  // Load settings on startup
+  useEffect(() => {
+    loadSettingsFromDisk();
+  }, []);
+
+  const loadSettingsFromDisk = async () => {
+    try {
+      const settings = await invoke<any>("load_settings");
+      console.log("Loaded settings:", settings);
+
+      // Populate Canvas form from settings
+      setCanvasForm({
+        baseUrl: settings.common.canvas_base_url || "https://canvas.tue.nl",
+        customUrl: settings.common.canvas_custom_url || "",
+        urlOption: settings.common.canvas_url_option || "TUE",
+        accessToken: settings.common.canvas_access_token || "",
+        courseId: settings.common.canvas_course_id || "",
+        courseName: settings.common.canvas_course_name || "",
+        yamlFile: settings.common.canvas_yaml_file || "students.yaml",
+        infoFileFolder: settings.common.canvas_info_folder || "",
+        csvFile: settings.common.canvas_csv_file || "student-info.csv",
+        xlsxFile: settings.common.canvas_xlsx_file || "student-info.xlsx",
+        memberOption: settings.common.canvas_member_option || "(email, gitid)",
+        includeGroup: settings.common.canvas_include_group ?? true,
+        includeMember: settings.common.canvas_include_member ?? true,
+        includeInitials: settings.common.canvas_include_initials ?? false,
+        fullGroups: settings.common.canvas_full_groups ?? true,
+        csv: settings.common.canvas_output_csv ?? false,
+        xlsx: settings.common.canvas_output_xlsx ?? false,
+        yaml: settings.common.canvas_output_yaml ?? true,
+      });
+
+      // Populate Repo form from settings
+      setForm({
+        accessToken: settings.common.git_access_token || "",
+        user: settings.common.git_user || "",
+        baseUrl: settings.common.git_base_url || "https://gitlab.tue.nl",
+        studentReposGroup: settings.common.git_student_repos_group || "",
+        templateGroup: settings.common.git_template_group || "",
+        yamlFile: settings.common.yaml_file || "students.yaml",
+        targetFolder: settings.common.target_folder || "",
+        assignments: settings.common.assignments || "",
+        directoryLayout: (settings.common.directory_layout || "flat") as "by-team" | "flat" | "by-task",
+        logLevels: {
+          info: settings.common.log_info ?? true,
+          debug: settings.common.log_debug ?? false,
+          warning: settings.common.log_warning ?? true,
+          error: settings.common.log_error ?? true,
+        },
+      });
+
+      // GUI-specific settings
+      setActiveTab((settings.active_tab || "canvas") as TabType);
+      setConfigLocked(settings.config_locked ?? true);
+      setOptionsLocked(settings.options_locked ?? true);
+
+      appendOutput("✓ Settings loaded successfully");
+    } catch (error) {
+      console.error("Failed to load settings:", error);
+      appendOutput(`⚠ Using default settings (${error})`);
+    }
+  };
+
+  const saveSettingsToDisk = async () => {
+    try {
+      const settings = {
+        common: {
+          // Canvas settings
+          canvas_base_url: canvasForm.baseUrl,
+          canvas_custom_url: canvasForm.customUrl,
+          canvas_url_option: canvasForm.urlOption,
+          canvas_access_token: canvasForm.accessToken,
+          canvas_course_id: canvasForm.courseId,
+          canvas_course_name: canvasForm.courseName,
+          canvas_yaml_file: canvasForm.yamlFile,
+          canvas_info_folder: canvasForm.infoFileFolder,
+          canvas_csv_file: canvasForm.csvFile,
+          canvas_xlsx_file: canvasForm.xlsxFile,
+          canvas_member_option: canvasForm.memberOption,
+          canvas_include_group: canvasForm.includeGroup,
+          canvas_include_member: canvasForm.includeMember,
+          canvas_include_initials: canvasForm.includeInitials,
+          canvas_full_groups: canvasForm.fullGroups,
+          canvas_output_csv: canvasForm.csv,
+          canvas_output_xlsx: canvasForm.xlsx,
+          canvas_output_yaml: canvasForm.yaml,
+
+          // Git platform settings
+          git_base_url: form.baseUrl,
+          git_access_token: form.accessToken,
+          git_user: form.user,
+          git_student_repos_group: form.studentReposGroup,
+          git_template_group: form.templateGroup,
+
+          // Repository setup settings
+          yaml_file: form.yamlFile,
+          target_folder: form.targetFolder,
+          assignments: form.assignments,
+          directory_layout: form.directoryLayout,
+
+          // Logging settings
+          log_info: form.logLevels.info,
+          log_debug: form.logLevels.debug,
+          log_warning: form.logLevels.warning,
+          log_error: form.logLevels.error,
+        },
+        // GUI-specific settings
+        active_tab: activeTab,
+        config_locked: configLocked,
+        options_locked: optionsLocked,
+        window_width: 0,
+        window_height: 0,
+        window_x: 0,
+        window_y: 0,
+      };
+
+      await invoke("save_settings", { settings });
+      appendOutput("✓ Settings saved successfully");
+    } catch (error) {
+      console.error("Failed to save settings:", error);
+      appendOutput(`✗ Failed to save settings: ${error}`);
+    }
+  };
 
   const updateForm = (field: keyof FormState, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -596,6 +720,9 @@ function App() {
             </button>
             <button className="btn-icon">i</button>
             <div className="spacer"></div>
+            <button className="btn-action" onClick={saveSettingsToDisk}>
+              Save Settings
+            </button>
             <button className="btn-action" onClick={clearHistory}>
               Clear History
             </button>
@@ -857,6 +984,9 @@ function App() {
         </button>
         <button className="btn-icon">i</button>
         <div className="spacer"></div>
+        <button className="btn-action" onClick={saveSettingsToDisk}>
+          Save Settings
+        </button>
         <button className="btn-action" onClick={clearHistory}>
           Clear History
         </button>
