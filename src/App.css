@@ -40,6 +40,43 @@ body {
   padding: 4px;
 }
 
+/* Tab Navigation */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--color-border);
+  margin-bottom: 8px;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: var(--color-fieldset-bg);
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  color: var(--color-text);
+  transition: background-color 0.2s;
+}
+
+.tab-button:hover {
+  background-color: #d0d0d0;
+}
+
+.tab-button.active {
+  background-color: var(--color-bg);
+  font-weight: 600;
+  border-bottom: 2px solid var(--color-bg);
+  margin-bottom: -2px;
+}
+
+.tab-content {
+  padding: 16px;
+}
+
 /* Fieldsets and sections */
 fieldset {
   border: 1px solid var(--color-border);
@@ -78,13 +115,19 @@ legend {
 }
 
 .form-row input[type="text"],
-.form-row input[type="password"] {
+.form-row input[type="password"],
+.form-row select {
   padding: 4px 8px;
   border: 1px solid var(--color-border);
   border-radius: 2px;
   background-color: var(--color-input-bg);
   font-size: 12px;
   font-family: inherit;
+}
+
+.form-row select {
+  cursor: pointer;
+  max-width: 120px;
 }
 
 .form-row input[type="text"]:disabled,

@@ -1,7 +1,45 @@
-use repobee_core::{Platform, PlatformAPI, StudentTeam};
+use repobee_core::{
+    Platform, PlatformAPI, StudentTeam,
+    CanvasClient, MemberOption, YamlConfig,
+    generate_repobee_yaml, write_yaml_file, write_csv_file,
+};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+// Canvas-related parameters
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CanvasConfigParams {
+    base_url: String,
+    access_token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct VerifyCourseParams {
+    base_url: String,
+    access_token: String,
+    course_id: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct GenerateFilesParams {
+    base_url: String,
+    access_token: String,
+    course_id: u64,
+    yaml_file: String,
+    info_file_folder: String,
+    csv_file: String,
+    xlsx_file: String,
+    member_option: String,
+    include_group: bool,
+    include_member: bool,
+    include_initials: bool,
+    full_groups: bool,
+    csv: bool,
+    xlsx: bool,
+    yaml: bool,
+}
+
+// Git platform related parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ConfigParams {
     access_token: String,
@@ -32,6 +70,90 @@ struct CommandResult {
     success: bool,
     message: String,
     details: Option<String>,
+}
+
+/// Verify Canvas course credentials and fetch course information
+#[tauri::command]
+async fn verify_canvas_course(params: VerifyCourseParams) -> Result<CommandResult, String> {
+    let client = CanvasClient::new(params.base_url.clone(), params.access_token)
+        .map_err(|e| format!("Failed to create Canvas client: {}", e))?;
+
+    let course = client
+        .get_course(params.course_id)
+        .await
+        .map_err(|e| format!("Failed to verify course: {}", e))?;
+
+    Ok(CommandResult {
+        success: true,
+        message: format!("✓ Course verified: {}", course.name),
+        details: Some(format!(
+            "Course ID: {}\nCourse Name: {}\nCourse Code: {}",
+            course.id,
+            course.name,
+            course.course_code.as_deref().unwrap_or("N/A")
+        )),
+    })
+}
+
+/// Generate student files from Canvas course
+#[tauri::command]
+async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandResult, String> {
+    // Create Canvas client
+    let client = CanvasClient::new(params.base_url, params.access_token)
+        .map_err(|e| format!("Failed to create Canvas client: {}", e))?;
+
+    // Fetch student information
+    let students = client
+        .get_student_info(params.course_id)
+        .await
+        .map_err(|e| format!("Failed to fetch student info: {}", e))?;
+
+    let student_count = students.len();
+    let mut generated_files = Vec::new();
+
+    // Generate YAML file if requested
+    if params.yaml {
+        let config = YamlConfig {
+            member_option: MemberOption::from_str(&params.member_option),
+            include_group: params.include_group,
+            include_member: params.include_member,
+            include_initials: params.include_initials,
+            full_groups: params.full_groups,
+        };
+
+        let teams = generate_repobee_yaml(&students, &config)
+            .map_err(|e| format!("Failed to generate YAML: {}", e))?;
+
+        let yaml_path = PathBuf::from(&params.yaml_file);
+        write_yaml_file(&teams, &yaml_path)
+            .map_err(|e| format!("Failed to write YAML file: {}", e))?;
+
+        generated_files.push(format!("YAML: {} ({} teams)", params.yaml_file, teams.len()));
+    }
+
+    // Generate CSV file if requested
+    if params.csv {
+        let csv_path = PathBuf::from(&params.info_file_folder).join(&params.csv_file);
+        write_csv_file(&students, &csv_path)
+            .map_err(|e| format!("Failed to write CSV file: {}", e))?;
+
+        generated_files.push(format!("CSV: {}", csv_path.display()));
+    }
+
+    // Generate Excel file if requested (TODO: implement Excel writer)
+    if params.xlsx {
+        return Err("Excel file generation not yet implemented".to_string());
+    }
+
+    Ok(CommandResult {
+        success: true,
+        message: format!("✓ Successfully generated {} file(s)", generated_files.len()),
+        details: Some(format!(
+            "Students processed: {}\n\nGenerated files:\n{}",
+            student_count,
+            generated_files.join("\n")
+        )),
+    })
 }
 
 /// Verify platform configuration and authentication
@@ -235,6 +357,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            verify_canvas_course,
+            generate_canvas_files,
             verify_config,
             setup_repos,
             clone_repos
