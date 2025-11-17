@@ -4,6 +4,10 @@ use schemars::JsonSchema;
 /// Common settings shared between GUI and CLI
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CommonSettings {
+    // ===== LMS Settings =====
+    #[serde(default = "defaults::lms_type")]
+    pub lms_type: String, // "Canvas", "Moodle", or "Blackboard"
+
     // ===== Canvas Settings =====
     #[serde(default = "defaults::canvas_base_url")]
     pub canvas_base_url: String,
@@ -105,6 +109,9 @@ pub struct CommonSettings {
 impl Default for CommonSettings {
     fn default() -> Self {
         Self {
+            // LMS settings
+            lms_type: defaults::lms_type(),
+
             // Canvas settings
             canvas_base_url: defaults::canvas_base_url(),
             canvas_custom_url: String::new(),
@@ -149,6 +156,10 @@ impl Default for CommonSettings {
 
 /// Default values for settings
 mod defaults {
+    pub fn lms_type() -> String {
+        "Canvas".to_string()
+    }
+
     pub fn canvas_base_url() -> String {
         "https://canvas.tue.nl".to_string()
     }

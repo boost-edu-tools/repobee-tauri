@@ -1,18 +1,13 @@
 use repobee_core::{
     Platform, PlatformAPI, StudentTeam,
-    CanvasClient, MemberOption, YamlConfig,
+    MemberOption, YamlConfig,
     generate_repobee_yaml, write_yaml_file, write_csv_file,
+    create_lms_client_with_params, get_student_info,
+    LmsClientTrait,
     GuiSettings, SettingsManager,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-
-// Canvas-related parameters
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct CanvasConfigParams {
-    base_url: String,
-    access_token: String,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct VerifyCourseParams {
@@ -134,11 +129,13 @@ async fn settings_exist() -> Result<bool, String> {
 /// Verify Canvas course credentials and fetch course information
 #[tauri::command]
 async fn verify_canvas_course(params: VerifyCourseParams) -> Result<CommandResult, String> {
-    let client = CanvasClient::new(params.base_url.clone(), params.access_token)
-        .map_err(|e| format!("Failed to create Canvas client: {}", e))?;
+    // Create unified LMS client (defaults to Canvas)
+    let client = create_lms_client_with_params("Canvas", params.base_url.clone(), params.access_token)
+        .map_err(|e| format!("Failed to create LMS client: {}", e))?;
 
+    // Get course info (course_id is now a String)
     let course = client
-        .get_course(params.course_id)
+        .get_course(&params.course_id.to_string())
         .await
         .map_err(|e| format!("Failed to verify course: {}", e))?;
 
@@ -157,13 +154,12 @@ async fn verify_canvas_course(params: VerifyCourseParams) -> Result<CommandResul
 /// Generate student files from Canvas course
 #[tauri::command]
 async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandResult, String> {
-    // Create Canvas client
-    let client = CanvasClient::new(params.base_url, params.access_token)
-        .map_err(|e| format!("Failed to create Canvas client: {}", e))?;
+    // Create unified LMS client (defaults to Canvas)
+    let client = create_lms_client_with_params("Canvas", params.base_url, params.access_token)
+        .map_err(|e| format!("Failed to create LMS client: {}", e))?;
 
-    // Fetch student information
-    let students = client
-        .get_student_info(params.course_id)
+    // Fetch student information using unified client
+    let students = get_student_info(&client, &params.course_id.to_string())
         .await
         .map_err(|e| format!("Failed to fetch student info: {}", e))?;
 

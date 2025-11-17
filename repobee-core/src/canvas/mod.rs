@@ -1,7 +1,7 @@
 mod types;
-mod client;
 mod yaml;
+mod lms_client_factory;
 
 pub use types::*;
-pub use client::*;
 pub use yaml::*;
+pub use lms_client_factory::*;

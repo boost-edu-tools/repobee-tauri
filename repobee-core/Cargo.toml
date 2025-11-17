@@ -35,5 +35,9 @@ dirs = "5"
 schemars = "0.8"
 jsonschema = "0.18"
 
+# LMS client (unified)
+lms-client = { path = "../../lms-api/lms-client" }
+lms-common = { path = "../../lms-api/lms-common" }
+
 [dev-dependencies]
 tempfile.workspace = true

@@ -1,71 +1,17 @@
 use serde::{Deserialize, Serialize};
+// Use lms-client re-exported types (from lms-common)
+pub use lms_client::{Course, Group, GroupMembership, User};
 
-/// Canvas User/Student information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CanvasUser {
-    pub id: u64,
-    pub name: String,
-    pub short_name: Option<String>,
-    pub login_id: Option<String>,
-    pub sis_user_id: Option<String>,
-}
-
-/// Canvas User Profile (detailed information)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CanvasUserProfile {
-    pub id: u64,
-    pub name: String,
-    pub short_name: Option<String>,
-    pub primary_email: Option<String>,
-    pub login_id: Option<String>,
-    pub sis_user_id: Option<String>,
-}
-
-/// Canvas Course information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CanvasCourse {
-    pub id: u64,
-    pub name: String,
-    pub course_code: Option<String>,
-}
-
-/// Canvas Group information
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CanvasGroup {
-    pub id: u64,
-    pub name: String,
-    pub members_count: Option<u32>,
-    pub max_membership: Option<u32>,
-}
-
-/// Canvas Group Membership
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CanvasGroupMembership {
-    pub id: u64,
-    pub user_id: u64,
-    pub group_id: u64,
-}
-
-/// Canvas Enrollment
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CanvasEnrollment {
-    pub id: u64,
-    pub user_id: u64,
-    pub course_id: u64,
-    #[serde(rename = "type")]
-    pub enrollment_type: String,
-    pub role: String,
-}
-
-/// Student information mapped from Canvas
+/// Student information mapped from LMS
+/// This is domain-specific to repobee and combines LMS data with Git identifiers
 #[derive(Debug, Clone)]
 pub struct StudentInfo {
-    pub group: Option<CanvasGroup>,
+    pub group: Option<Group>,  // Now uses lms-common::Group with String ID
     pub full_name: String,
     pub name: String,           // Last name
-    pub canvas_id: String,      // login_id
-    pub git_id: String,         // sis_user_id
-    pub email: String,          // primary_email
+    pub canvas_id: String,      // login_id (keeping name for compatibility)
+    pub git_id: String,         // sis_user_id or external identifier
+    pub email: String,
 }
 
 /// Configuration for YAML generation
