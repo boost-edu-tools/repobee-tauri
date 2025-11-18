@@ -129,7 +129,7 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       const lmsBaseUrl = common.lms_base_url || "https://canvas.tue.nl";
 
       // Populate LMS form from settings
-      setLmsForm({
+      const loadedLmsForm: LmsFormState = {
         lmsType: (common.lms_type || "Canvas") as "Canvas" | "Moodle",
         baseUrl: lmsBaseUrl,
         customUrl: common.lms_custom_url || "",
@@ -149,7 +149,13 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         csv: common.lms_output_csv ?? false,
         xlsx: common.lms_output_xlsx ?? false,
         yaml: common.lms_output_yaml ?? true,
-      });
+      };
+
+      if (loadedLmsForm.lmsType !== "Canvas") {
+        loadedLmsForm.urlOption = "Custom";
+      }
+
+      setLmsForm(loadedLmsForm);
 
       // Populate Repo form from settings
       setForm({
@@ -269,6 +275,18 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       ...prev,
       logLevels: { ...prev.logLevels, [level]: !prev.logLevels[level] },
     }));
+  };
+
+  const handleLmsTypeChange = (value: "Canvas" | "Moodle") => {
+    setLmsForm((prev) => {
+      const next = { ...prev, lmsType: value };
+      if (value !== "Canvas") {
+        next.urlOption = "Custom";
+      } else if (prev.baseUrl.trim() === "") {
+        next.baseUrl = "https://canvas.tue.nl";
+      }
+      return next;
+    });
   };
 
   const openLmsTokenDialog = async () => {
@@ -603,7 +621,7 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
               <label>LMS Type</label>
               <select
                 value={lmsForm.lmsType}
-                onChange={(e) => updateLmsForm("lmsType", e.target.value as "Canvas" | "Moodle")}
+                onChange={(e) => handleLmsTypeChange(e.target.value as "Canvas" | "Moodle")}
               >
                 <option value="Canvas">Canvas</option>
                 <option value="Moodle">Moodle</option>
@@ -617,8 +635,9 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
               <select
                 value={lmsForm.urlOption}
                 onChange={(e) => updateLmsForm("urlOption", e.target.value as "TUE" | "Custom")}
+                disabled={lmsForm.lmsType !== "Canvas"}
               >
-                <option value="TUE">TUE</option>
+                {lmsForm.lmsType === "Canvas" && <option value="TUE">TUE</option>}
                 <option value="Custom">Custom</option>
               </select>
               <input
