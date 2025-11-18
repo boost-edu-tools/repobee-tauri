@@ -22,20 +22,20 @@ pub fn create_lms_client(settings: &CommonSettings) -> Result<LmsClient> {
 
     // Determine base URL (Canvas allows TUE shortcut or custom)
     let base_url = if settings.lms_type == "Canvas" {
-        if settings.canvas_url_option == "TUE" {
-            settings.canvas_base_url.clone()
+        if settings.lms_url_option == "TUE" {
+            settings.lms_base_url.clone()
         } else {
-            settings.canvas_custom_url.clone()
+            settings.lms_custom_url.clone()
         }
     } else {
-        // For Moodle, use canvas_custom_url field (or add dedicated fields)
-        settings.canvas_custom_url.clone()
+        // For Moodle and future LMSes, rely on the custom URL field
+        settings.lms_custom_url.clone()
     };
 
     // Create authentication (both Canvas and Moodle use token auth)
     let auth = LmsAuth::Token {
         url: base_url,
-        token: settings.canvas_access_token.clone(),
+        token: settings.lms_access_token.clone(),
     };
 
     // Create the unified client

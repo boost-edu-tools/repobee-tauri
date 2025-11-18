@@ -39,24 +39,25 @@ mkdir -p "$SETTINGS_DIR"
 cat > "$SETTINGS_FILE" << 'EOF'
 {
   "common": {
-    "canvas_base_url": "https://canvas.test.edu",
-    "canvas_custom_url": "",
-    "canvas_url_option": "Custom",
-    "canvas_access_token": "test_token_123",
-    "canvas_course_id": "12345",
-    "canvas_course_name": "Test Course",
-    "canvas_yaml_file": "test_students.yaml",
-    "canvas_info_folder": "/tmp/test",
-    "canvas_csv_file": "test.csv",
-    "canvas_xlsx_file": "test.xlsx",
-    "canvas_member_option": "(email, gitid)",
-    "canvas_include_group": true,
-    "canvas_include_member": false,
-    "canvas_include_initials": true,
-    "canvas_full_groups": false,
-    "canvas_output_csv": true,
-    "canvas_output_xlsx": false,
-    "canvas_output_yaml": true,
+    "lms_type": "Canvas",
+    "lms_base_url": "https://canvas.test.edu",
+    "lms_custom_url": "",
+    "lms_url_option": "Custom",
+    "lms_access_token": "test_token_123",
+    "lms_course_id": "12345",
+    "lms_course_name": "Test Course",
+    "lms_yaml_file": "test_students.yaml",
+    "lms_info_folder": "/tmp/test",
+    "lms_csv_file": "test.csv",
+    "lms_xlsx_file": "test.xlsx",
+    "lms_member_option": "(email, gitid)",
+    "lms_include_group": true,
+    "lms_include_member": false,
+    "lms_include_initials": true,
+    "lms_full_groups": false,
+    "lms_output_csv": true,
+    "lms_output_xlsx": false,
+    "lms_output_yaml": true,
     "git_base_url": "https://gitlab.test.com",
     "git_access_token": "git_test_token",
     "git_user": "testuser",
@@ -101,15 +102,15 @@ fi
 # Parse and verify key values
 echo "7. Verifying key settings values:"
 if command -v jq &> /dev/null; then
-    CANVAS_URL=$(jq -r '.common.canvas_base_url' "$SETTINGS_FILE")
+    LMS_URL=$(jq -r '.common.lms_base_url' "$SETTINGS_FILE")
     GIT_USER=$(jq -r '.common.git_user' "$SETTINGS_FILE")
     ACTIVE_TAB=$(jq -r '.active_tab' "$SETTINGS_FILE")
 
-    echo "   - Canvas URL: $CANVAS_URL"
+    echo "   - LMS URL: $LMS_URL"
     echo "   - Git User: $GIT_USER"
     echo "   - Active Tab: $ACTIVE_TAB"
 
-    if [ "$CANVAS_URL" = "https://canvas.test.edu" ] && \
+    if [ "$LMS_URL" = "https://canvas.test.edu" ] && \
        [ "$GIT_USER" = "testuser" ] && \
        [ "$ACTIVE_TAB" = "repo" ]; then
         echo "   ✓ All values correct"

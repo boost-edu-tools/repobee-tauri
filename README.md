@@ -4,11 +4,11 @@ A modern desktop application for managing student repositories, built with Tauri
 
 ## Overview
 
-RepoBee Tauri is a GUI application for educators to manage student repositories across multiple Git platforms (GitHub, GitLab, Gitea) and integrate with Canvas LMS.
+RepoBee Tauri is a GUI application for educators to manage student repositories across multiple Git platforms (GitHub, GitLab, Gitea) and integrate with learning management systems (Canvas, Moodle, ...).
 
 ## Features
 
-- **Canvas Integration**: Import student data from Canvas courses
+- **LMS Integration**: Import student data from Canvas or Moodle courses
 - **Multi-Platform Git Support**: Works with GitHub, GitLab, Gitea, and local filesystems
 - **Repository Setup**: Create student repositories from templates
 - **Repository Cloning**: Clone all student repositories with customizable layouts
@@ -42,9 +42,9 @@ pnpm tauri build
 repobee-tauri/
 ├── src/                    # React frontend
 ├── src-tauri/             # Tauri backend (Rust)
-├── repobee-core/          # Core library (Git/Canvas operations)
+├── repobee-core/          # Core library (Git/LMS operations)
 │   ├── src/
-│   │   ├── canvas/        # Canvas LMS integration
+│   │   ├── lms/           # LMS integration
 │   │   ├── platform/      # Git platform abstractions
 │   │   ├── settings/      # Settings management
 │   │   └── setup/         # Repository setup logic
@@ -86,7 +86,7 @@ This creates `settings-schema.json` which can be used for:
 {
   "$schema": "./settings-schema.json",
   "common": {
-    "canvas_base_url": "https://canvas.tue.nl",
+    "lms_base_url": "https://canvas.tue.nl",
     ...
   }
 }
@@ -99,7 +99,7 @@ This enables autocomplete and validation while editing settings.
 Settings are organized into two levels:
 
 1. **CommonSettings**: Shared between GUI and CLI
-   - Canvas configuration (URL, tokens, course info)
+   - LMS configuration (URL, tokens, course info)
    - Git platform configuration (URL, tokens, organization)
    - Repository setup options
    - Logging preferences

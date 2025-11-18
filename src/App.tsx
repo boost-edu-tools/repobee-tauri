@@ -21,7 +21,8 @@ interface FormState {
   };
 }
 
-interface CanvasFormState {
+interface LmsFormState {
+  lmsType: "Canvas" | "Moodle";
   baseUrl: string;
   customUrl: string;
   urlOption: "TUE" | "Custom";
@@ -42,21 +43,22 @@ interface CanvasFormState {
   yaml: boolean;
 }
 
-type TabType = "canvas" | "repo";
+type TabType = "lms" | "repo";
 
 function App() {
   const settingsLoadedRef = useRef(false);
-  const [activeTab, setActiveTab] = useState<TabType>("canvas");
+const [activeTab, setActiveTab] = useState<TabType>("lms");
   const [configLocked, setConfigLocked] = useState(true);
   const [optionsLocked, setOptionsLocked] = useState(true);
   const [outputText, setOutputText] = useState("");
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
   const [tokenDialogValue, setTokenDialogValue] = useState("");
-  const [canvasTokenDialogOpen, setCanvasTokenDialogOpen] = useState(false);
-  const [canvasTokenDialogValue, setCanvasTokenDialogValue] = useState("");
+  const [lmsTokenDialogOpen, setLmsTokenDialogOpen] = useState(false);
+  const [lmsTokenDialogValue, setLmsTokenDialogValue] = useState("");
   const [showTokenInstructions, setShowTokenInstructions] = useState(false);
   const [tokenInstructions, setTokenInstructions] = useState("");
-  const [canvasForm, setCanvasForm] = useState<CanvasFormState>({
+  const [lmsForm, setLmsForm] = useState<LmsFormState>({
+    lmsType: "Canvas",
     baseUrl: "https://canvas.tue.nl",
     customUrl: "",
     urlOption: "TUE",
@@ -117,33 +119,36 @@ function App() {
 
       // Settings are flattened (due to #[serde(flatten)] in Rust)
       // All fields are at the top level
-      const isFlattened = 'canvas_base_url' in settings;
+      const isFlattened = 'lms_base_url' in settings;
       const common = isFlattened ? settings : settings.common;
 
       if (!common) {
         throw new Error("Settings missing required fields");
       }
 
-      // Populate Canvas form from settings
-      setCanvasForm({
-        baseUrl: common.canvas_base_url || "https://canvas.tue.nl",
-        customUrl: common.canvas_custom_url || "",
-        urlOption: common.canvas_url_option || "TUE",
-        accessToken: common.canvas_access_token || "",
-        courseId: common.canvas_course_id || "",
-        courseName: common.canvas_course_name || "",
-        yamlFile: common.canvas_yaml_file || "students.yaml",
-        infoFileFolder: common.canvas_info_folder || "",
-        csvFile: common.canvas_csv_file || "student-info.csv",
-        xlsxFile: common.canvas_xlsx_file || "student-info.xlsx",
-        memberOption: common.canvas_member_option || "(email, gitid)",
-        includeGroup: common.canvas_include_group ?? true,
-        includeMember: common.canvas_include_member ?? true,
-        includeInitials: common.canvas_include_initials ?? false,
-        fullGroups: common.canvas_full_groups ?? true,
-        csv: common.canvas_output_csv ?? false,
-        xlsx: common.canvas_output_xlsx ?? false,
-        yaml: common.canvas_output_yaml ?? true,
+      const lmsBaseUrl = common.lms_base_url || "https://canvas.tue.nl";
+
+      // Populate LMS form from settings
+      setLmsForm({
+        lmsType: (common.lms_type || "Canvas") as "Canvas" | "Moodle",
+        baseUrl: lmsBaseUrl,
+        customUrl: common.lms_custom_url || "",
+        urlOption: (common.lms_url_option || "TUE") as "TUE" | "Custom",
+        accessToken: common.lms_access_token || "",
+        courseId: common.lms_course_id || "",
+        courseName: common.lms_course_name || "",
+        yamlFile: common.lms_yaml_file || "students.yaml",
+        infoFileFolder: common.lms_info_folder || "",
+        csvFile: common.lms_csv_file || "student-info.csv",
+        xlsxFile: common.lms_xlsx_file || "student-info.xlsx",
+        memberOption: (common.lms_member_option || "(email, gitid)") as "(email, gitid)" | "email" | "git_id",
+        includeGroup: common.lms_include_group ?? true,
+        includeMember: common.lms_include_member ?? true,
+        includeInitials: common.lms_include_initials ?? false,
+        fullGroups: common.lms_full_groups ?? true,
+        csv: common.lms_output_csv ?? false,
+        xlsx: common.lms_output_xlsx ?? false,
+        yaml: common.lms_output_yaml ?? true,
       });
 
       // Populate Repo form from settings
@@ -166,7 +171,8 @@ function App() {
       });
 
       // GUI-specific settings
-      setActiveTab((settings.active_tab || "canvas") as TabType);
+      const savedTab = settings.active_tab === "repo" ? "repo" : "lms";
+      setActiveTab(savedTab as TabType);
       setConfigLocked(settings.config_locked ?? true);
       setOptionsLocked(settings.options_locked ?? true);
 
@@ -192,25 +198,26 @@ function App() {
       // Note: GuiSettings has #[serde(flatten)] on common field,
       // so all fields must be at the top level, not nested under "common"
       const settings = {
-        // Canvas settings
-        canvas_base_url: canvasForm.baseUrl,
-        canvas_custom_url: canvasForm.customUrl,
-        canvas_url_option: canvasForm.urlOption,
-        canvas_access_token: canvasForm.accessToken,
-        canvas_course_id: canvasForm.courseId,
-        canvas_course_name: canvasForm.courseName,
-        canvas_yaml_file: canvasForm.yamlFile,
-        canvas_info_folder: canvasForm.infoFileFolder,
-        canvas_csv_file: canvasForm.csvFile,
-        canvas_xlsx_file: canvasForm.xlsxFile,
-        canvas_member_option: canvasForm.memberOption,
-        canvas_include_group: canvasForm.includeGroup,
-        canvas_include_member: canvasForm.includeMember,
-        canvas_include_initials: canvasForm.includeInitials,
-        canvas_full_groups: canvasForm.fullGroups,
-        canvas_output_csv: canvasForm.csv,
-        canvas_output_xlsx: canvasForm.xlsx,
-        canvas_output_yaml: canvasForm.yaml,
+        // LMS settings
+        lms_type: lmsForm.lmsType,
+        lms_base_url: lmsForm.baseUrl,
+        lms_custom_url: lmsForm.customUrl,
+        lms_url_option: lmsForm.urlOption,
+        lms_access_token: lmsForm.accessToken,
+        lms_course_id: lmsForm.courseId,
+        lms_course_name: lmsForm.courseName,
+        lms_yaml_file: lmsForm.yamlFile,
+        lms_info_folder: lmsForm.infoFileFolder,
+        lms_csv_file: lmsForm.csvFile,
+        lms_xlsx_file: lmsForm.xlsxFile,
+        lms_member_option: lmsForm.memberOption,
+        lms_include_group: lmsForm.includeGroup,
+        lms_include_member: lmsForm.includeMember,
+        lms_include_initials: lmsForm.includeInitials,
+        lms_full_groups: lmsForm.fullGroups,
+        lms_output_csv: lmsForm.csv,
+        lms_output_xlsx: lmsForm.xlsx,
+        lms_output_yaml: lmsForm.yaml,
 
         // Git platform settings
         git_base_url: form.baseUrl,
@@ -253,8 +260,8 @@ function App() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateCanvasForm = (field: keyof CanvasFormState, value: any) => {
-    setCanvasForm((prev) => ({ ...prev, [field]: value }));
+  const updateLmsForm = (field: keyof LmsFormState, value: any) => {
+    setLmsForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const updateLogLevel = (level: keyof FormState["logLevels"]) => {
@@ -264,14 +271,14 @@ function App() {
     }));
   };
 
-  const openCanvasTokenDialog = async () => {
-    setCanvasTokenDialogValue(canvasForm.accessToken);
-    setCanvasTokenDialogOpen(true);
+  const openLmsTokenDialog = async () => {
+    setLmsTokenDialogValue(lmsForm.accessToken);
+    setLmsTokenDialogOpen(true);
 
     // Load instructions
     try {
       const instructions = await invoke<string>("get_token_instructions", {
-        lmsType: "Canvas",
+        lms_type: lmsForm.lmsType,
       });
       setTokenInstructions(instructions);
       setShowTokenInstructions(false); // Start collapsed
@@ -280,21 +287,21 @@ function App() {
     }
   };
 
-  const closeCanvasTokenDialog = () => {
-    setCanvasTokenDialogOpen(false);
+  const closeLmsTokenDialog = () => {
+    setLmsTokenDialogOpen(false);
   };
 
-  const saveCanvasToken = () => {
-    updateCanvasForm("accessToken", canvasTokenDialogValue);
-    setCanvasTokenDialogOpen(false);
+  const saveLmsToken = () => {
+    updateLmsForm("accessToken", lmsTokenDialogValue);
+    setLmsTokenDialogOpen(false);
   };
 
-  const openCanvasTokenUrl = async () => {
+  const openLmsTokenUrl = async () => {
     try {
-      const baseUrl = canvasForm.urlOption === "TUE" ? canvasForm.baseUrl : canvasForm.customUrl;
+      const baseUrl = lmsForm.urlOption === "TUE" ? lmsForm.baseUrl : lmsForm.customUrl;
       await invoke("open_token_url", {
-        baseUrl: baseUrl,
-        lmsType: "Canvas",
+        base_url: baseUrl,
+        lms_type: lmsForm.lmsType,
       });
       // Show instructions if they weren't visible
       setShowTokenInstructions(true);
@@ -304,23 +311,23 @@ function App() {
     }
   };
 
-  const browseCanvasYamlFile = async () => {
+  const browseLmsYamlFile = async () => {
     const selected = await open({
       multiple: false,
       filters: [{ name: "YAML Files", extensions: ["yaml", "yml"] }],
     });
     if (selected && typeof selected === "string") {
-      updateCanvasForm("yamlFile", selected);
+      updateLmsForm("yamlFile", selected);
     }
   };
 
-  const browseCanvasInfoFolder = async () => {
+  const browseLmsInfoFolder = async () => {
     const selected = await open({
       directory: true,
       multiple: false,
     });
     if (selected && typeof selected === "string") {
-      updateCanvasForm("infoFileFolder", selected);
+      updateLmsForm("infoFileFolder", selected);
     }
   };
 
@@ -348,17 +355,19 @@ function App() {
     setOutputText((prev) => prev + text + "\n");
   };
 
-  const verifyCanvasCourse = async () => {
+  const verifyLmsCourse = async () => {
     try {
-      appendOutput("Verifying Canvas course...");
+      const lmsLabel = lmsForm.lmsType || "LMS";
+      appendOutput(`Verifying ${lmsLabel} course...`);
 
       const result = await invoke<{ success: boolean; message: string; details?: string }>(
-        "verify_canvas_course",
+        "verify_lms_course",
         {
           params: {
-            base_url: canvasForm.urlOption === "TUE" ? canvasForm.baseUrl : canvasForm.customUrl,
-            access_token: canvasForm.accessToken,
-            course_id: parseInt(canvasForm.courseId),
+            base_url: lmsForm.urlOption === "TUE" ? lmsForm.baseUrl : lmsForm.customUrl,
+            access_token: lmsForm.accessToken,
+            course_id: lmsForm.courseId,
+            lms_type: lmsForm.lmsType,
           },
         }
       );
@@ -372,7 +381,7 @@ function App() {
       if (result.details) {
         const match = result.details.match(/Course Name: (.+)/);
         if (match) {
-          updateCanvasForm("courseName", match[1]);
+          updateLmsForm("courseName", match[1]);
         }
       }
     } catch (error) {
@@ -380,9 +389,10 @@ function App() {
     }
   };
 
-  const generateCanvasFiles = async () => {
+  const generateLmsFiles = async () => {
     try {
-      appendOutput("Generating files from Canvas...");
+      const lmsLabel = lmsForm.lmsType || "LMS";
+      appendOutput(`Generating files from ${lmsLabel}...`);
 
       const PROGRESS_PREFIX = "[PROGRESS]";
       const PROGRESS_DISPLAY_PREFIX = "(progress) ";
@@ -413,24 +423,25 @@ function App() {
       };
 
       const result = await invoke<{ success: boolean; message: string; details?: string }>(
-        "generate_canvas_files",
+        "generate_lms_files",
         {
           params: {
-            base_url: canvasForm.urlOption === "TUE" ? canvasForm.baseUrl : canvasForm.customUrl,
-            access_token: canvasForm.accessToken,
-            course_id: parseInt(canvasForm.courseId),
-            yaml_file: canvasForm.yamlFile,
-            info_file_folder: canvasForm.infoFileFolder,
-            csv_file: canvasForm.csvFile,
-            xlsx_file: canvasForm.xlsxFile,
-            member_option: canvasForm.memberOption,
-            include_group: canvasForm.includeGroup,
-            include_member: canvasForm.includeMember,
-            include_initials: canvasForm.includeInitials,
-            full_groups: canvasForm.fullGroups,
-            csv: canvasForm.csv,
-            xlsx: canvasForm.xlsx,
-            yaml: canvasForm.yaml,
+            base_url: lmsForm.urlOption === "TUE" ? lmsForm.baseUrl : lmsForm.customUrl,
+            access_token: lmsForm.accessToken,
+            course_id: lmsForm.courseId,
+            lms_type: lmsForm.lmsType,
+            yaml_file: lmsForm.yamlFile,
+            info_file_folder: lmsForm.infoFileFolder,
+            csv_file: lmsForm.csvFile,
+            xlsx_file: lmsForm.xlsxFile,
+            member_option: lmsForm.memberOption,
+            include_group: lmsForm.includeGroup,
+            include_member: lmsForm.includeMember,
+            include_initials: lmsForm.includeInitials,
+            full_groups: lmsForm.fullGroups,
+            csv: lmsForm.csv,
+            xlsx: lmsForm.xlsx,
+            yaml: lmsForm.yaml,
           },
           progress: progressChannel,
         }
@@ -443,8 +454,8 @@ function App() {
       }
 
       // If successful and YAML was generated, update the repo tab's YAML field
-      if (result.success && canvasForm.yaml) {
-        updateForm("yamlFile", canvasForm.yamlFile);
+      if (result.success && lmsForm.yaml) {
+        updateForm("yamlFile", lmsForm.yamlFile);
       }
     } catch (error) {
       appendOutput(`✗ Error: ${error}`);
@@ -568,10 +579,10 @@ function App() {
       {/* Tab Navigation */}
       <div className="tab-bar">
         <button
-          className={`tab-button ${activeTab === "canvas" ? "active" : ""}`}
-          onClick={() => setActiveTab("canvas")}
+          className={`tab-button ${activeTab === "lms" ? "active" : ""}`}
+          onClick={() => setActiveTab("lms")}
         >
-          Canvas Import
+          LMS Import
         </button>
         <button
           className={`tab-button ${activeTab === "repo" ? "active" : ""}`}
@@ -581,32 +592,45 @@ function App() {
         </button>
       </div>
 
-      {/* Canvas Import Tab */}
-      {activeTab === "canvas" && (
+      {/* LMS Import Tab */}
+      {activeTab === "lms" && (
         <>
-          {/* Canvas Configuration */}
+          {/* LMS Configuration */}
           <fieldset className="config-section">
-            <legend>Canvas configuration</legend>
+            <legend>LMS configuration</legend>
+
+            <div className="form-row">
+              <label>LMS Type</label>
+              <select
+                value={lmsForm.lmsType}
+                onChange={(e) => updateLmsForm("lmsType", e.target.value as "Canvas" | "Moodle")}
+              >
+                <option value="Canvas">Canvas</option>
+                <option value="Moodle">Moodle</option>
+              </select>
+              <button className="btn-icon">i</button>
+              <div></div>
+            </div>
 
             <div className="form-row">
               <label>Base URL</label>
               <select
-                value={canvasForm.urlOption}
-                onChange={(e) => updateCanvasForm("urlOption", e.target.value as "TUE" | "Custom")}
+                value={lmsForm.urlOption}
+                onChange={(e) => updateLmsForm("urlOption", e.target.value as "TUE" | "Custom")}
               >
                 <option value="TUE">TUE</option>
                 <option value="Custom">Custom</option>
               </select>
               <input
                 type="text"
-                value={canvasForm.urlOption === "TUE" ? canvasForm.baseUrl : canvasForm.customUrl}
+                value={lmsForm.urlOption === "TUE" ? lmsForm.baseUrl : lmsForm.customUrl}
                 onChange={(e) =>
-                  updateCanvasForm(
-                    canvasForm.urlOption === "TUE" ? "baseUrl" : "customUrl",
+                  updateLmsForm(
+                    lmsForm.urlOption === "TUE" ? "baseUrl" : "customUrl",
                     e.target.value
                   )
                 }
-                disabled={canvasForm.urlOption === "TUE"}
+                disabled={lmsForm.urlOption === "TUE"}
               />
               <button className="btn-icon">i</button>
             </div>
@@ -615,12 +639,12 @@ function App() {
               <label>Access Token</label>
               <input
                 type="password"
-                value={canvasForm.accessToken}
+                value={lmsForm.accessToken}
                 readOnly
                 placeholder="Click Set to add token"
               />
-              <button className="btn-small" onClick={openCanvasTokenDialog}>
-                {canvasForm.accessToken ? "Edit" : "Set"}
+              <button className="btn-small" onClick={openLmsTokenDialog}>
+                {lmsForm.accessToken ? "Edit" : "Set"}
               </button>
               <button className="btn-icon">i</button>
             </div>
@@ -629,20 +653,20 @@ function App() {
               <label>Course ID</label>
               <input
                 type="text"
-                value={canvasForm.courseId}
-                onChange={(e) => updateCanvasForm("courseId", e.target.value)}
+                value={lmsForm.courseId}
+                onChange={(e) => updateLmsForm("courseId", e.target.value)}
                 placeholder="Enter course ID"
               />
-              <button className="btn-small" onClick={verifyCanvasCourse}>Verify</button>
+              <button className="btn-small" onClick={verifyLmsCourse}>Verify</button>
               <button className="btn-icon">i</button>
             </div>
 
-            {canvasForm.courseName && (
+            {lmsForm.courseName && (
               <div className="form-row">
                 <label>Course Name</label>
                 <input
                   type="text"
-                  value={canvasForm.courseName}
+                  value={lmsForm.courseName}
                   readOnly
                 />
               </div>
@@ -657,11 +681,11 @@ function App() {
               <label>Info File Folder</label>
               <input
                 type="text"
-                value={canvasForm.infoFileFolder}
-                onChange={(e) => updateCanvasForm("infoFileFolder", e.target.value)}
+                value={lmsForm.infoFileFolder}
+                onChange={(e) => updateLmsForm("infoFileFolder", e.target.value)}
                 className="flex-1"
               />
-              <button className="btn-small" onClick={browseCanvasInfoFolder}>
+              <button className="btn-small" onClick={browseLmsInfoFolder}>
                 Browse
               </button>
               <button className="btn-icon">i</button>
@@ -671,11 +695,11 @@ function App() {
               <label>YAML File</label>
               <input
                 type="text"
-                value={canvasForm.yamlFile}
-                onChange={(e) => updateCanvasForm("yamlFile", e.target.value)}
+                value={lmsForm.yamlFile}
+                onChange={(e) => updateLmsForm("yamlFile", e.target.value)}
                 className="flex-1"
               />
-              <button className="btn-small" onClick={browseCanvasYamlFile}>
+              <button className="btn-small" onClick={browseLmsYamlFile}>
                 Browse
               </button>
               <button className="btn-icon">i</button>
@@ -688,24 +712,24 @@ function App() {
                   <label>
                     <input
                       type="checkbox"
-                      checked={canvasForm.csv}
-                      onChange={() => updateCanvasForm("csv", !canvasForm.csv)}
+                      checked={lmsForm.csv}
+                      onChange={() => updateLmsForm("csv", !lmsForm.csv)}
                     />
                     CSV
                   </label>
                   <label>
                     <input
                       type="checkbox"
-                      checked={canvasForm.xlsx}
-                      onChange={() => updateCanvasForm("xlsx", !canvasForm.xlsx)}
+                      checked={lmsForm.xlsx}
+                      onChange={() => updateLmsForm("xlsx", !lmsForm.xlsx)}
                     />
                     Excel
                   </label>
                   <label>
                     <input
                       type="checkbox"
-                      checked={canvasForm.yaml}
-                      onChange={() => updateCanvasForm("yaml", !canvasForm.yaml)}
+                      checked={lmsForm.yaml}
+                      onChange={() => updateLmsForm("yaml", !lmsForm.yaml)}
                     />
                     YAML (RepoBee)
                   </label>
@@ -720,8 +744,8 @@ function App() {
                       type="radio"
                       name="memberOption"
                       value="(email, gitid)"
-                      checked={canvasForm.memberOption === "(email, gitid)"}
-                      onChange={(e) => updateCanvasForm("memberOption", e.target.value)}
+                      checked={lmsForm.memberOption === "(email, gitid)"}
+                      onChange={(e) => updateLmsForm("memberOption", e.target.value)}
                     />
                     (email, git_id)
                   </label>
@@ -730,8 +754,8 @@ function App() {
                       type="radio"
                       name="memberOption"
                       value="email"
-                      checked={canvasForm.memberOption === "email"}
-                      onChange={(e) => updateCanvasForm("memberOption", e.target.value)}
+                      checked={lmsForm.memberOption === "email"}
+                      onChange={(e) => updateLmsForm("memberOption", e.target.value)}
                     />
                     Email only
                   </label>
@@ -740,8 +764,8 @@ function App() {
                       type="radio"
                       name="memberOption"
                       value="git_id"
-                      checked={canvasForm.memberOption === "git_id"}
-                      onChange={(e) => updateCanvasForm("memberOption", e.target.value)}
+                      checked={lmsForm.memberOption === "git_id"}
+                      onChange={(e) => updateLmsForm("memberOption", e.target.value)}
                     />
                     Git ID only
                   </label>
@@ -761,25 +785,25 @@ function App() {
                   <label>
                     <input
                       type="checkbox"
-                      checked={canvasForm.includeGroup}
-                      onChange={() => updateCanvasForm("includeGroup", !canvasForm.includeGroup)}
+                      checked={lmsForm.includeGroup}
+                      onChange={() => updateLmsForm("includeGroup", !lmsForm.includeGroup)}
                     />
                     Group Name
                   </label>
                   <label>
                     <input
                       type="checkbox"
-                      checked={canvasForm.includeMember}
-                      onChange={() => updateCanvasForm("includeMember", !canvasForm.includeMember)}
+                      checked={lmsForm.includeMember}
+                      onChange={() => updateLmsForm("includeMember", !lmsForm.includeMember)}
                     />
                     Member Names
                   </label>
                   <label>
                     <input
                       type="checkbox"
-                      checked={canvasForm.includeInitials}
-                      onChange={() => updateCanvasForm("includeInitials", !canvasForm.includeInitials)}
-                      disabled={!canvasForm.includeMember}
+                      checked={lmsForm.includeInitials}
+                      onChange={() => updateLmsForm("includeInitials", !lmsForm.includeInitials)}
+                      disabled={!lmsForm.includeMember}
                     />
                     Use Initials
                   </label>
@@ -792,8 +816,8 @@ function App() {
                   <label>
                     <input
                       type="checkbox"
-                      checked={canvasForm.fullGroups}
-                      onChange={() => updateCanvasForm("fullGroups", !canvasForm.fullGroups)}
+                      checked={lmsForm.fullGroups}
+                      onChange={() => updateLmsForm("fullGroups", !lmsForm.fullGroups)}
                     />
                     Full Groups Only
                   </label>
@@ -804,7 +828,7 @@ function App() {
 
           {/* Action Buttons */}
           <div className="action-buttons">
-            <button className="btn-action" onClick={generateCanvasFiles}>
+            <button className="btn-action" onClick={generateLmsFiles}>
               Generate Files
             </button>
             <button className="btn-icon">i</button>
@@ -823,7 +847,7 @@ function App() {
               className="output-window"
               value={outputText}
               readOnly
-              placeholder="Canvas import output will appear here..."
+              placeholder="LMS import output will appear here..."
             />
           </div>
         </>
@@ -1122,11 +1146,11 @@ function App() {
         </div>
       )}
 
-      {/* Canvas Token Edit Dialog */}
-      {canvasTokenDialogOpen && (
-        <div className="dialog-overlay" onClick={closeCanvasTokenDialog}>
+      {/* LMS Token Edit Dialog */}
+      {lmsTokenDialogOpen && (
+        <div className="dialog-overlay" onClick={closeLmsTokenDialog}>
           <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h2>{canvasForm.accessToken ? "Edit" : "Set"} Canvas Access Token</h2>
+            <h2>{lmsForm.accessToken ? "Edit" : "Set"} {lmsForm.lmsType} Access Token</h2>
 
             {/* Instructions section */}
             {tokenInstructions && (
@@ -1156,7 +1180,7 @@ function App() {
                       lineHeight: "1.5",
                     }}
                   >
-                    <strong>Note: Click the "Get Token" button below to open the Canvas access token creation page in your browser</strong>
+                    <strong>Note: Click the "Get Token" button below to open the {lmsForm.lmsType} access token creation page in your browser</strong>
                     {"\n\n"}
                     {tokenInstructions}
                   </div>
@@ -1166,20 +1190,20 @@ function App() {
 
             <input
               type="text"
-              value={canvasTokenDialogValue}
-              onChange={(e) => setCanvasTokenDialogValue(e.target.value)}
+              value={lmsTokenDialogValue}
+              onChange={(e) => setLmsTokenDialogValue(e.target.value)}
               placeholder="Paste copied token here"
               autoFocus={!showTokenInstructions}
               className="dialog-input"
             />
             <div className="dialog-buttons">
-              <button className="btn-action" onClick={openCanvasTokenUrl}>
+              <button className="btn-action" onClick={openLmsTokenUrl}>
                 Get Token
               </button>
-              <button className="btn-action" onClick={saveCanvasToken}>
+              <button className="btn-action" onClick={saveLmsToken}>
                 OK
               </button>
-              <button className="btn-action" onClick={closeCanvasTokenDialog}>
+              <button className="btn-action" onClick={closeLmsTokenDialog}>
                 Cancel
               </button>
             </div>

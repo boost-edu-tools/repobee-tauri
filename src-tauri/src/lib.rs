@@ -57,18 +57,39 @@ fn emit_inline_message(channel: &Channel<String>, state: &mut InlineCliState, me
     state.update(message);
 }
 
+fn parse_lms_type(lms_type: &str) -> Result<LmsCommonType, String> {
+    match lms_type {
+        "Canvas" => Ok(LmsCommonType::Canvas),
+        "Moodle" => Ok(LmsCommonType::Moodle),
+        other => Err(format!(
+            "Unknown LMS type: {}. Supported: Canvas, Moodle",
+            other
+        )),
+    }
+}
+
+fn lms_display_name(lms_type: &str) -> &str {
+    match lms_type {
+        "Canvas" => "Canvas",
+        "Moodle" => "Moodle",
+        _ => "LMS",
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct VerifyCourseParams {
     base_url: String,
     access_token: String,
-    course_id: u64,
+    course_id: String,
+    lms_type: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct GenerateFilesParams {
     base_url: String,
     access_token: String,
-    course_id: u64,
+    course_id: String,
+    lms_type: String,
     yaml_file: String,
     info_file_folder: String,
     csv_file: String,
@@ -178,35 +199,14 @@ async fn settings_exist() -> Result<bool, String> {
 /// Get token generation instructions for an LMS type
 #[tauri::command]
 async fn get_token_instructions(lms_type: String) -> Result<String, String> {
-    // Convert string lms_type to LmsCommonType
-    let lms_type_enum = match lms_type.as_str() {
-        "Canvas" => LmsCommonType::Canvas,
-        "Moodle" => LmsCommonType::Moodle,
-        _ => {
-            return Err(format!(
-                "Unknown LMS type: {}. Supported: Canvas, Moodle",
-                lms_type
-            ))
-        }
-    };
-
+    let lms_type_enum = parse_lms_type(&lms_type)?;
     Ok(get_token_generation_instructions(lms_type_enum).to_string())
 }
 
 /// Open the LMS token generation page in the browser
 #[tauri::command]
 async fn open_token_url(base_url: String, lms_type: String) -> Result<(), String> {
-    // Convert string lms_type to LmsCommonType
-    let lms_type_enum = match lms_type.as_str() {
-        "Canvas" => LmsCommonType::Canvas,
-        "Moodle" => LmsCommonType::Moodle,
-        _ => {
-            return Err(format!(
-                "Unknown LMS type: {}. Supported: Canvas, Moodle",
-                lms_type
-            ))
-        }
-    };
+    let lms_type_enum = parse_lms_type(&lms_type)?;
 
     open_token_generation_url(&base_url, lms_type_enum)
         .map_err(|e| format!("Failed to open token URL: {}", e))?;
@@ -214,25 +214,28 @@ async fn open_token_url(base_url: String, lms_type: String) -> Result<(), String
     Ok(())
 }
 
-// ===== Canvas Commands =====
+// ===== LMS Commands =====
 
-/// Verify Canvas course credentials and fetch course information
+/// Verify LMS course credentials and fetch course information
 #[tauri::command]
-async fn verify_canvas_course(params: VerifyCourseParams) -> Result<CommandResult, String> {
-    // Create unified LMS client (defaults to Canvas)
-    let client =
-        create_lms_client_with_params("Canvas", params.base_url.clone(), params.access_token)
-            .map_err(|e| format!("Failed to create LMS client: {}", e))?;
+async fn verify_lms_course(params: VerifyCourseParams) -> Result<CommandResult, String> {
+    let lms_label = lms_display_name(&params.lms_type);
+    let client = create_lms_client_with_params(
+        &params.lms_type,
+        params.base_url.clone(),
+        params.access_token,
+    )
+    .map_err(|e| format!("Failed to create LMS client: {}", e))?;
 
-    // Get course info (course_id is now a String)
+    // Get course info using user-provided course identifier
     let course = client
-        .get_course(&params.course_id.to_string())
+        .get_course(&params.course_id)
         .await
         .map_err(|e| format!("Failed to verify course: {}", e))?;
 
     Ok(CommandResult {
         success: true,
-        message: format!("✓ Course verified: {}", course.name),
+        message: format!("✓ {} course verified: {}", lms_label, course.name),
         details: Some(format!(
             "Course ID: {}\nCourse Name: {}\nCourse Code: {}",
             course.id,
@@ -242,14 +245,14 @@ async fn verify_canvas_course(params: VerifyCourseParams) -> Result<CommandResul
     })
 }
 
-/// Generate student files from Canvas course
+/// Generate student files from an LMS course
 #[tauri::command]
-async fn generate_canvas_files(
+async fn generate_lms_files(
     params: GenerateFilesParams,
     progress: Channel<String>,
 ) -> Result<CommandResult, String> {
-    // Create unified LMS client (defaults to Canvas)
-    let client = create_lms_client_with_params("Canvas", params.base_url, params.access_token)
+    let lms_label = lms_display_name(&params.lms_type);
+    let client = create_lms_client_with_params(&params.lms_type, params.base_url, params.access_token)
         .map_err(|e| format!("Failed to create LMS client: {}", e))?;
 
     let cli_progress = Arc::new(Mutex::new(InlineCliState::default()));
@@ -257,19 +260,19 @@ async fn generate_canvas_files(
     // Fetch student information using unified client
     let fetch_progress_state = Arc::clone(&cli_progress);
     let fetch_progress_channel = progress.clone();
-    let students =
-        get_student_info_with_progress(&client, &params.course_id.to_string(), move |update| {
+    let course_id = params.course_id.clone();
+    let students = get_student_info_with_progress(&client, &course_id, move |update| {
             match update {
                 FetchProgress::FetchingUsers => {
                     emit_standard_message(
                         &fetch_progress_channel,
-                        "Fetching students from Canvas...",
+                        &format!("Fetching students from {}...", lms_label),
                     );
                 }
                 FetchProgress::FetchingGroups => {
                     emit_standard_message(
                         &fetch_progress_channel,
-                        "Fetching groups from Canvas...",
+                        &format!("Fetching groups from {}...", lms_label),
                     );
                 }
                 FetchProgress::FetchedUsers { count } => {
@@ -294,7 +297,8 @@ async fn generate_canvas_files(
                             &fetch_progress_channel,
                             &mut state,
                             &format!(
-                                "Fetching Canvas group memberships {}/{}: {}",
+                                "Fetching {} group memberships {}/{}: {}",
+                                lms_label,
                                 current,
                                 total.max(1),
                                 group_name
@@ -313,7 +317,10 @@ async fn generate_canvas_files(
 
     let student_count = students.len();
 
-    let fetched_message = format!("Fetched {} students. Preparing files...", student_count);
+    let fetched_message = format!(
+        "Fetched {} students from {}. Preparing files...",
+        student_count, lms_label
+    );
     emit_standard_message(&progress, &fetched_message);
     let mut generated_files = Vec::new();
 
@@ -604,8 +611,8 @@ pub fn run() {
             settings_exist,
             get_token_instructions,
             open_token_url,
-            verify_canvas_course,
-            generate_canvas_files,
+            verify_lms_course,
+            generate_lms_files,
             verify_config,
             setup_repos,
             clone_repos

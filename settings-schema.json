@@ -3,82 +3,86 @@
   "description": "GUI-specific settings (extends CommonSettings)",
   "properties": {
     "active_tab": {
-      "default": "canvas",
+      "default": "lms",
       "type": "string"
     },
     "assignments": {
       "default": "",
       "type": "string"
     },
-    "canvas_access_token": {
+    "lms_type": {
+      "default": "Canvas",
+      "type": "string"
+    },
+    "lms_access_token": {
       "default": "",
       "type": "string"
     },
-    "canvas_base_url": {
+    "lms_base_url": {
       "default": "https://canvas.tue.nl",
       "type": "string"
     },
-    "canvas_course_id": {
+    "lms_course_id": {
       "default": "",
       "type": "string"
     },
-    "canvas_course_name": {
+    "lms_course_name": {
       "default": "",
       "type": "string"
     },
-    "canvas_csv_file": {
+    "lms_csv_file": {
       "default": "student-info.csv",
       "type": "string"
     },
-    "canvas_custom_url": {
+    "lms_custom_url": {
       "default": "",
       "type": "string"
     },
-    "canvas_full_groups": {
+    "lms_full_groups": {
       "default": true,
       "type": "boolean"
     },
-    "canvas_include_group": {
+    "lms_include_group": {
       "default": true,
       "type": "boolean"
     },
-    "canvas_include_initials": {
+    "lms_include_initials": {
       "default": false,
       "type": "boolean"
     },
-    "canvas_include_member": {
+    "lms_include_member": {
       "default": true,
       "type": "boolean"
     },
-    "canvas_info_folder": {
+    "lms_info_folder": {
       "default": "",
       "type": "string"
     },
-    "canvas_member_option": {
+    "lms_member_option": {
       "default": "(email, gitid)",
       "type": "string"
     },
-    "canvas_output_csv": {
+    "lms_output_csv": {
       "default": false,
       "type": "boolean"
     },
-    "canvas_output_xlsx": {
+    "lms_output_xlsx": {
       "default": false,
       "type": "boolean"
     },
-    "canvas_output_yaml": {
+    "lms_output_yaml": {
       "default": true,
       "type": "boolean"
     },
-    "canvas_url_option": {
+    "lms_url_option": {
       "default": "TUE",
       "type": "string"
     },
-    "canvas_xlsx_file": {
+    "lms_xlsx_file": {
       "default": "student-info.xlsx",
       "type": "string"
     },
-    "canvas_yaml_file": {
+    "lms_yaml_file": {
       "default": "students.yaml",
       "type": "string"
     },

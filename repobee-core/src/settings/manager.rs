@@ -178,9 +178,9 @@ mod tests {
     #[test]
     fn test_default_settings() {
         let settings = GuiSettings::default();
-        assert_eq!(settings.common.canvas_base_url, "https://canvas.tue.nl");
+        assert_eq!(settings.common.lms_base_url, "https://canvas.tue.nl");
         assert_eq!(settings.common.git_base_url, "https://gitlab.tue.nl");
-        assert_eq!(settings.active_tab, "canvas");
+        assert_eq!(settings.active_tab, "lms");
     }
 
     #[test]
@@ -189,10 +189,7 @@ mod tests {
         let json = serde_json::to_string(&settings).unwrap();
         let deserialized: GuiSettings = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(
-            settings.common.canvas_base_url,
-            deserialized.common.canvas_base_url
-        );
+        assert_eq!(settings.common.lms_base_url, deserialized.common.lms_base_url);
         assert_eq!(settings.active_tab, deserialized.active_tab);
     }
 
@@ -221,7 +218,7 @@ mod tests {
         // Create invalid JSON with wrong types
         let invalid_json = serde_json::json!({
             "common": {
-                "canvas_base_url": 12345,  // Should be string
+                "lms_base_url": 12345,  // Should be string
                 "log_info": "not a boolean"  // Should be boolean
             },
             "active_tab": "canvas",

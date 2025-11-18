@@ -8,60 +8,60 @@ pub struct CommonSettings {
     #[serde(default = "defaults::lms_type")]
     pub lms_type: String, // "Canvas" or "Moodle"
 
-    // ===== Canvas Settings =====
-    #[serde(default = "defaults::canvas_base_url")]
-    pub canvas_base_url: String,
+    // ===== LMS Settings =====
+    #[serde(default = "defaults::lms_base_url")]
+    pub lms_base_url: String,
 
     #[serde(default)]
-    pub canvas_custom_url: String,
+    pub lms_custom_url: String,
 
-    #[serde(default = "defaults::canvas_url_option")]
-    pub canvas_url_option: String, // "TUE" or "Custom"
-
-    #[serde(default)]
-    pub canvas_access_token: String,
+    #[serde(default = "defaults::lms_url_option")]
+    pub lms_url_option: String, // "Default" or "Custom"
 
     #[serde(default)]
-    pub canvas_course_id: String,
+    pub lms_access_token: String,
 
     #[serde(default)]
-    pub canvas_course_name: String,
-
-    #[serde(default = "defaults::canvas_yaml_file")]
-    pub canvas_yaml_file: String,
+    pub lms_course_id: String,
 
     #[serde(default)]
-    pub canvas_info_folder: String,
+    pub lms_course_name: String,
 
-    #[serde(default = "defaults::canvas_csv_file")]
-    pub canvas_csv_file: String,
-
-    #[serde(default = "defaults::canvas_xlsx_file")]
-    pub canvas_xlsx_file: String,
-
-    #[serde(default = "defaults::canvas_member_option")]
-    pub canvas_member_option: String, // "(email, gitid)", "email", "git_id"
-
-    #[serde(default = "defaults::canvas_include_group")]
-    pub canvas_include_group: bool,
-
-    #[serde(default = "defaults::canvas_include_member")]
-    pub canvas_include_member: bool,
+    #[serde(default = "defaults::lms_yaml_file")]
+    pub lms_yaml_file: String,
 
     #[serde(default)]
-    pub canvas_include_initials: bool,
+    pub lms_info_folder: String,
 
-    #[serde(default = "defaults::canvas_full_groups")]
-    pub canvas_full_groups: bool,
+    #[serde(default = "defaults::lms_csv_file")]
+    pub lms_csv_file: String,
+
+    #[serde(default = "defaults::lms_xlsx_file")]
+    pub lms_xlsx_file: String,
+
+    #[serde(default = "defaults::lms_member_option")]
+    pub lms_member_option: String, // "(email, gitid)", "email", "git_id"
+
+    #[serde(default = "defaults::lms_include_group")]
+    pub lms_include_group: bool,
+
+    #[serde(default = "defaults::lms_include_member")]
+    pub lms_include_member: bool,
 
     #[serde(default)]
-    pub canvas_output_csv: bool,
+    pub lms_include_initials: bool,
+
+    #[serde(default = "defaults::lms_full_groups")]
+    pub lms_full_groups: bool,
 
     #[serde(default)]
-    pub canvas_output_xlsx: bool,
+    pub lms_output_csv: bool,
 
-    #[serde(default = "defaults::canvas_output_yaml")]
-    pub canvas_output_yaml: bool,
+    #[serde(default)]
+    pub lms_output_xlsx: bool,
+
+    #[serde(default = "defaults::lms_output_yaml")]
+    pub lms_output_yaml: bool,
 
     // ===== Git Platform Settings =====
     #[serde(default = "defaults::git_base_url")]
@@ -112,25 +112,25 @@ impl Default for CommonSettings {
             // LMS settings
             lms_type: defaults::lms_type(),
 
-            // Canvas settings
-            canvas_base_url: defaults::canvas_base_url(),
-            canvas_custom_url: String::new(),
-            canvas_url_option: defaults::canvas_url_option(),
-            canvas_access_token: String::new(),
-            canvas_course_id: String::new(),
-            canvas_course_name: String::new(),
-            canvas_yaml_file: defaults::canvas_yaml_file(),
-            canvas_info_folder: String::new(),
-            canvas_csv_file: defaults::canvas_csv_file(),
-            canvas_xlsx_file: defaults::canvas_xlsx_file(),
-            canvas_member_option: defaults::canvas_member_option(),
-            canvas_include_group: defaults::canvas_include_group(),
-            canvas_include_member: defaults::canvas_include_member(),
-            canvas_include_initials: false,
-            canvas_full_groups: defaults::canvas_full_groups(),
-            canvas_output_csv: false,
-            canvas_output_xlsx: false,
-            canvas_output_yaml: defaults::canvas_output_yaml(),
+            // LMS settings
+            lms_base_url: defaults::lms_base_url(),
+            lms_custom_url: String::new(),
+            lms_url_option: defaults::lms_url_option(),
+            lms_access_token: String::new(),
+            lms_course_id: String::new(),
+            lms_course_name: String::new(),
+            lms_yaml_file: defaults::lms_yaml_file(),
+            lms_info_folder: String::new(),
+            lms_csv_file: defaults::lms_csv_file(),
+            lms_xlsx_file: defaults::lms_xlsx_file(),
+            lms_member_option: defaults::lms_member_option(),
+            lms_include_group: defaults::lms_include_group(),
+            lms_include_member: defaults::lms_include_member(),
+            lms_include_initials: false,
+            lms_full_groups: defaults::lms_full_groups(),
+            lms_output_csv: false,
+            lms_output_xlsx: false,
+            lms_output_yaml: defaults::lms_output_yaml(),
 
             // Git platform settings
             git_base_url: defaults::git_base_url(),
@@ -160,43 +160,43 @@ mod defaults {
         "Canvas".to_string()
     }
 
-    pub fn canvas_base_url() -> String {
+    pub fn lms_base_url() -> String {
         "https://canvas.tue.nl".to_string()
     }
 
-    pub fn canvas_url_option() -> String {
+    pub fn lms_url_option() -> String {
         "TUE".to_string()
     }
 
-    pub fn canvas_yaml_file() -> String {
+    pub fn lms_yaml_file() -> String {
         "students.yaml".to_string()
     }
 
-    pub fn canvas_csv_file() -> String {
+    pub fn lms_csv_file() -> String {
         "student-info.csv".to_string()
     }
 
-    pub fn canvas_xlsx_file() -> String {
+    pub fn lms_xlsx_file() -> String {
         "student-info.xlsx".to_string()
     }
 
-    pub fn canvas_member_option() -> String {
+    pub fn lms_member_option() -> String {
         "(email, gitid)".to_string()
     }
 
-    pub fn canvas_include_group() -> bool {
+    pub fn lms_include_group() -> bool {
         true
     }
 
-    pub fn canvas_include_member() -> bool {
+    pub fn lms_include_member() -> bool {
         true
     }
 
-    pub fn canvas_full_groups() -> bool {
+    pub fn lms_full_groups() -> bool {
         true
     }
 
-    pub fn canvas_output_yaml() -> bool {
+    pub fn lms_output_yaml() -> bool {
         true
     }
 
