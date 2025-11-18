@@ -592,7 +592,6 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
 
   return (
     <div className="repobee-container">
-      <h1 className="app-title">Repobee</h1>
 
       {/* Tab Navigation */}
       <div className="tab-bar">
