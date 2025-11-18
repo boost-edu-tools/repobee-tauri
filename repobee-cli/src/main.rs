@@ -5,9 +5,7 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
-use repobee_core::{
-    setup_student_repos, Platform, PlatformAPI, StudentTeam,
-};
+use repobee_core::{setup_student_repos, Platform, PlatformAPI, StudentTeam};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -99,7 +97,10 @@ enum PlatformType {
 /// Parse team string in format "name:member1,member2" or "member1,member2" (auto-generated name)
 fn parse_team(team_str: &str) -> Result<StudentTeam> {
     if let Some((name, members_str)) = team_str.split_once(':') {
-        let members: Vec<String> = members_str.split(',').map(|s| s.trim().to_string()).collect();
+        let members: Vec<String> = members_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .collect();
         Ok(StudentTeam::with_name(name.to_string(), members))
     } else {
         let members: Vec<String> = team_str.split(',').map(|s| s.trim().to_string()).collect();
@@ -112,8 +113,8 @@ fn load_teams_from_file(path: &PathBuf) -> Result<Vec<StudentTeam>> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read teams file: {}", path.display()))?;
 
-    let teams: Vec<StudentTeam> = serde_json::from_str(&content)
-        .with_context(|| "Failed to parse teams JSON")?;
+    let teams: Vec<StudentTeam> =
+        serde_json::from_str(&content).with_context(|| "Failed to parse teams JSON")?;
 
     Ok(teams)
 }
@@ -134,7 +135,10 @@ async fn run_setup(
     let student_teams = if let Some(file) = teams_file {
         load_teams_from_file(&file)?
     } else if !team_strings.is_empty() {
-        team_strings.iter().map(|s| parse_team(s)).collect::<Result<Vec<_>>>()?
+        team_strings
+            .iter()
+            .map(|s| parse_team(s))
+            .collect::<Result<Vec<_>>>()?
     } else {
         anyhow::bail!("Either --teams-file or --team arguments must be provided");
     };
@@ -161,14 +165,13 @@ async fn run_setup(
             let token_str = token.as_ref().context("Token required for Gitea")?;
             Platform::gitea(base_url, token_str.clone(), org, user)?
         }
-        PlatformType::Local => {
-            Platform::local(PathBuf::from(&base_url), org, user)?
-        }
+        PlatformType::Local => Platform::local(PathBuf::from(&base_url), org, user)?,
     };
 
     // Verify settings
     println!("Verifying platform settings...");
-    api.verify_settings().await
+    api.verify_settings()
+        .await
         .context("Failed to verify platform settings")?;
     println!("✓ Platform settings verified\n");
 
@@ -189,14 +192,23 @@ async fn run_setup(
 
     // Print summary
     println!("\n=== Final Summary ===");
-    println!("✓ Successfully created: {} repositories", result.successful_repos.len());
+    println!(
+        "✓ Successfully created: {} repositories",
+        result.successful_repos.len()
+    );
     if !result.existing_repos.is_empty() {
-        println!("  Already existed: {} repositories", result.existing_repos.len());
+        println!(
+            "  Already existed: {} repositories",
+            result.existing_repos.len()
+        );
     }
     if !result.errors.is_empty() {
         println!("✗ Errors: {} repositories", result.errors.len());
         for error in &result.errors {
-            eprintln!("  - {}/{}: {}", error.team_name, error.repo_name, error.error);
+            eprintln!(
+                "  - {}/{}: {}",
+                error.team_name, error.repo_name, error.error
+            );
         }
     }
 
@@ -252,15 +264,7 @@ async fn main() -> Result<()> {
             teams,
         } => {
             run_setup(
-                platform,
-                org,
-                base_url,
-                token,
-                user,
-                templates,
-                teams_file,
-                teams,
-                work_dir,
+                platform, org, base_url, token, user, templates, teams_file, teams, work_dir,
                 private,
             )
             .await

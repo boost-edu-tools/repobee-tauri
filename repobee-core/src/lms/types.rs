@@ -6,11 +6,11 @@ pub use lms_client::{Course, Group, GroupMembership, User};
 /// This is domain-specific to repobee and combines LMS data with Git identifiers
 #[derive(Debug, Clone)]
 pub struct StudentInfo {
-    pub group: Option<Group>,  // Now uses lms-common::Group with String ID
+    pub group: Option<Group>, // Now uses lms-common::Group with String ID
     pub full_name: String,
-    pub name: String,           // Last name
-    pub canvas_id: String,      // login_id (keeping name for compatibility)
-    pub git_id: String,         // sis_user_id or external identifier
+    pub name: String,      // Last name
+    pub canvas_id: String, // login_id (keeping name for compatibility)
+    pub git_id: String,    // sis_user_id or external identifier
     pub email: String,
 }
 

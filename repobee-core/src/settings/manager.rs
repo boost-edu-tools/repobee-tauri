@@ -18,8 +18,9 @@ impl SettingsManager {
         let settings_file = config_dir.join("repobee.json");
 
         // Ensure config directory exists
-        fs::create_dir_all(&config_dir)
-            .map_err(|e| PlatformError::Other(format!("Failed to create config directory: {}", e)))?;
+        fs::create_dir_all(&config_dir).map_err(|e| {
+            PlatformError::Other(format!("Failed to create config directory: {}", e))
+        })?;
 
         Ok(Self {
             config_dir,
@@ -188,7 +189,10 @@ mod tests {
         let json = serde_json::to_string(&settings).unwrap();
         let deserialized: GuiSettings = serde_json::from_str(&json).unwrap();
 
-        assert_eq!(settings.common.canvas_base_url, deserialized.common.canvas_base_url);
+        assert_eq!(
+            settings.common.canvas_base_url,
+            deserialized.common.canvas_base_url
+        );
         assert_eq!(settings.active_tab, deserialized.active_tab);
     }
 
@@ -225,7 +229,10 @@ mod tests {
         });
 
         let errors = manager.validate_settings(&invalid_json).unwrap();
-        assert!(!errors.is_empty(), "Invalid settings should produce validation errors");
+        assert!(
+            !errors.is_empty(),
+            "Invalid settings should produce validation errors"
+        );
     }
 
     #[test]

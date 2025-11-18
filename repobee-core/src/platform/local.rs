@@ -116,8 +116,9 @@ impl LocalAPI {
     /// Write a JSON file
     fn write_json<T: Serialize>(&self, path: &Path, data: &T) -> Result<()> {
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| PlatformError::FileError(format!("Failed to create directory: {}", e)))?;
+            fs::create_dir_all(parent).map_err(|e| {
+                PlatformError::FileError(format!("Failed to create directory: {}", e))
+            })?;
         }
         let content = serde_json::to_string_pretty(data)
             .map_err(|e| PlatformError::Other(format!("Failed to serialize JSON: {}", e)))?;
@@ -202,7 +203,10 @@ impl PlatformAPI for LocalAPI {
     async fn delete_team(&self, team: &Team) -> Result<()> {
         let team_path = self.team_path(&team.name);
         if !team_path.exists() {
-            return Err(PlatformError::not_found(format!("Team '{}' not found", team.name)));
+            return Err(PlatformError::not_found(format!(
+                "Team '{}' not found",
+                team.name
+            )));
         }
 
         fs::remove_file(&team_path)
@@ -229,17 +233,30 @@ impl PlatformAPI for LocalAPI {
         Ok(teams)
     }
 
-    async fn assign_repo(&self, team: &Team, repo: &Repo, _permission: TeamPermission) -> Result<()> {
+    async fn assign_repo(
+        &self,
+        team: &Team,
+        repo: &Repo,
+        _permission: TeamPermission,
+    ) -> Result<()> {
         // For LocalAPI, we store the team-repo relationship in the repo's metadata
         let repo_path = self.repo_path(&repo.name);
         if !repo_path.exists() {
-            return Err(PlatformError::not_found(format!("Repo '{}' not found", repo.name)));
+            return Err(PlatformError::not_found(format!(
+                "Repo '{}' not found",
+                repo.name
+            )));
         }
 
         // Read repo, update team assignment (stored in description for simplicity)
         let mut stored_repo: Repo = self.read_json(&repo_path)?;
-        if !stored_repo.description.contains(&format!("team:{}", team.name)) {
-            stored_repo.description.push_str(&format!(" [team:{}]", team.name));
+        if !stored_repo
+            .description
+            .contains(&format!("team:{}", team.name))
+        {
+            stored_repo
+                .description
+                .push_str(&format!(" [team:{}]", team.name));
         }
         self.write_json(&repo_path, &stored_repo)?;
 
@@ -254,7 +271,10 @@ impl PlatformAPI for LocalAPI {
     ) -> Result<()> {
         let team_path = self.team_path(&team.name);
         if !team_path.exists() {
-            return Err(PlatformError::not_found(format!("Team '{}' not found", team.name)));
+            return Err(PlatformError::not_found(format!(
+                "Team '{}' not found",
+                team.name
+            )));
         }
 
         let mut stored_team: Team = self.read_json(&team_path)?;
@@ -295,8 +315,7 @@ impl PlatformAPI for LocalAPI {
         // Create the actual git repository directory (as a bare repo)
         let repo_dir = self.base_dir.join("orgs").join(&self.org_name).join(name);
         if !repo_dir.exists() {
-            git2::Repository::init_bare(&repo_dir)
-                .map_err(|e| PlatformError::GitError(e))?;
+            git2::Repository::init_bare(&repo_dir).map_err(|e| PlatformError::GitError(e))?;
         }
 
         self.write_json(&repo_path, &repo)?;
@@ -306,7 +325,10 @@ impl PlatformAPI for LocalAPI {
     async fn delete_repo(&self, repo: &Repo) -> Result<()> {
         let repo_path = self.repo_path(&repo.name);
         if !repo_path.exists() {
-            return Err(PlatformError::not_found(format!("Repo '{}' not found", repo.name)));
+            return Err(PlatformError::not_found(format!(
+                "Repo '{}' not found",
+                repo.name
+            )));
         }
 
         fs::remove_file(&repo_path)
@@ -336,7 +358,10 @@ impl PlatformAPI for LocalAPI {
     async fn get_repo(&self, repo_name: &str, _team_name: Option<&str>) -> Result<Repo> {
         let repo_path = self.repo_path(repo_name);
         if !repo_path.exists() {
-            return Err(PlatformError::not_found(format!("Repo '{}' not found", repo_name)));
+            return Err(PlatformError::not_found(format!(
+                "Repo '{}' not found",
+                repo_name
+            )));
         }
 
         self.read_json(&repo_path)
@@ -403,7 +428,9 @@ impl PlatformAPI for LocalAPI {
         // Store assignees in body for simplicity
         if let Some(assigns) = assignees {
             if !assigns.is_empty() {
-                issue.body.push_str(&format!("\n\nAssignees: {}", assigns.join(", ")));
+                issue
+                    .body
+                    .push_str(&format!("\n\nAssignees: {}", assigns.join(", ")));
             }
         }
 
@@ -419,12 +446,16 @@ impl PlatformAPI for LocalAPI {
     }
 
     async fn close_issue(&self, issue: &Issue, repo: &Repo) -> Result<()> {
-        let issue_number = issue.number
+        let issue_number = issue
+            .number
             .ok_or_else(|| PlatformError::Other("Issue has no number".to_string()))?;
 
         let issue_path = self.issue_path(&repo.name, issue_number);
         if !issue_path.exists() {
-            return Err(PlatformError::not_found(format!("Issue #{} not found", issue_number)));
+            return Err(PlatformError::not_found(format!(
+                "Issue #{} not found",
+                issue_number
+            )));
         }
 
         let mut stored: StoredIssue = self.read_json(&issue_path)?;
@@ -479,7 +510,11 @@ impl PlatformAPI for LocalAPI {
     }
 
     fn for_organization(&self, org_name: &str) -> Result<Self> {
-        Self::new(self.base_dir.clone(), org_name.to_string(), self.user.clone())
+        Self::new(
+            self.base_dir.clone(),
+            org_name.to_string(),
+            self.user.clone(),
+        )
     }
 
     async fn verify_settings(&self) -> Result<()> {
@@ -606,7 +641,10 @@ mod tests {
 
         api.close_issue(&issue, &repo).await.unwrap();
 
-        let closed_issues = api.get_repo_issues(&repo, IssueState::Closed).await.unwrap();
+        let closed_issues = api
+            .get_repo_issues(&repo, IssueState::Closed)
+            .await
+            .unwrap();
         assert_eq!(closed_issues.len(), 1);
         assert_eq!(closed_issues[0].state, Some(IssueState::Closed));
     }
@@ -620,9 +658,13 @@ mod tests {
             .await
             .unwrap();
 
-        api.assign_members(&team, &["bob".to_string(), "charlie".to_string()], TeamPermission::Push)
-            .await
-            .unwrap();
+        api.assign_members(
+            &team,
+            &["bob".to_string(), "charlie".to_string()],
+            TeamPermission::Push,
+        )
+        .await
+        .unwrap();
 
         let updated_teams = api.get_teams(Some(&["team1".to_string()])).await.unwrap();
         assert_eq!(updated_teams[0].members.len(), 3);

@@ -101,7 +101,8 @@ impl GitHubAPI {
     /// Make an authenticated GET request
     async fn get<T: serde::de::DeserializeOwned>(&self, path: &str) -> Result<T> {
         let url = format!("{}{}", self.api_url, path);
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github.v3+json")
@@ -112,9 +113,14 @@ impl GitHubAPI {
     }
 
     /// Make an authenticated POST request
-    async fn post<T: serde::de::DeserializeOwned, B: Serialize>(&self, path: &str, body: &B) -> Result<T> {
+    async fn post<T: serde::de::DeserializeOwned, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T> {
         let url = format!("{}{}", self.api_url, path);
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github.v3+json")
@@ -126,9 +132,14 @@ impl GitHubAPI {
     }
 
     /// Make an authenticated PUT request
-    async fn put<T: serde::de::DeserializeOwned, B: Serialize>(&self, path: &str, body: &B) -> Result<T> {
+    async fn put<T: serde::de::DeserializeOwned, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T> {
         let url = format!("{}{}", self.api_url, path);
-        let response = self.client
+        let response = self
+            .client
             .put(&url)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github.v3+json")
@@ -142,7 +153,8 @@ impl GitHubAPI {
     /// Make an authenticated PUT request without body
     async fn put_empty(&self, path: &str) -> Result<()> {
         let url = format!("{}{}", self.api_url, path);
-        let response = self.client
+        let response = self
+            .client
             .put(&url)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github.v3+json")
@@ -159,9 +171,14 @@ impl GitHubAPI {
     }
 
     /// Make an authenticated PATCH request
-    async fn patch<T: serde::de::DeserializeOwned, B: Serialize>(&self, path: &str, body: &B) -> Result<T> {
+    async fn patch<T: serde::de::DeserializeOwned, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T> {
         let url = format!("{}{}", self.api_url, path);
-        let response = self.client
+        let response = self
+            .client
             .patch(&url)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github.v3+json")
@@ -175,7 +192,8 @@ impl GitHubAPI {
     /// Make an authenticated DELETE request
     async fn delete(&self, path: &str) -> Result<()> {
         let url = format!("{}{}", self.api_url, path);
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .header("Authorization", format!("token {}", self.token))
             .header("Accept", "application/vnd.github.v3+json")
@@ -192,10 +210,16 @@ impl GitHubAPI {
     }
 
     /// Handle HTTP response and convert errors
-    async fn handle_response<T: serde::de::DeserializeOwned>(&self, response: reqwest::Response) -> Result<T> {
+    async fn handle_response<T: serde::de::DeserializeOwned>(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<T> {
         let status = response.status();
         if status.is_success() {
-            response.json().await.map_err(|e| PlatformError::unexpected(format!("JSON parse error: {}", e)))
+            response
+                .json()
+                .await
+                .map_err(|e| PlatformError::unexpected(format!("JSON parse error: {}", e)))
         } else {
             let text = response.text().await.unwrap_or_default();
             self.convert_error(status.as_u16(), &text)
@@ -205,9 +229,18 @@ impl GitHubAPI {
     /// Convert HTTP error to PlatformError
     fn convert_error<T>(&self, status: u16, message: &str) -> Result<T> {
         match status {
-            404 => Err(PlatformError::not_found(format!("Resource not found: {}", message))),
-            401 | 403 => Err(PlatformError::bad_credentials(format!("Authentication failed: {}", message))),
-            _ => Err(PlatformError::unexpected(format!("HTTP {}: {}", status, message))),
+            404 => Err(PlatformError::not_found(format!(
+                "Resource not found: {}",
+                message
+            ))),
+            401 | 403 => Err(PlatformError::bad_credentials(format!(
+                "Authentication failed: {}",
+                message
+            ))),
+            _ => Err(PlatformError::unexpected(format!(
+                "HTTP {}: {}",
+                status, message
+            ))),
         }
     }
 
@@ -219,7 +252,12 @@ impl GitHubAPI {
 
     /// Get team members
     async fn get_team_members(&self, team_slug: &str) -> Result<Vec<String>> {
-        let members: Vec<GitHubUser> = self.get(&format!("/orgs/{}/teams/{}/members", self.org_name, team_slug)).await?;
+        let members: Vec<GitHubUser> = self
+            .get(&format!(
+                "/orgs/{}/teams/{}/members",
+                self.org_name, team_slug
+            ))
+            .await?;
         Ok(members.into_iter().map(|m| m.login).collect())
     }
 }
@@ -248,13 +286,19 @@ impl PlatformAPI for GitHubAPI {
             privacy: "secret".to_string(),
         };
 
-        let team: GitHubTeam = self.post(&format!("/orgs/{}/teams", self.org_name), &request).await?;
+        let team: GitHubTeam = self
+            .post(&format!("/orgs/{}/teams", self.org_name), &request)
+            .await?;
 
         // Add members if provided
         let mut member_list = Vec::new();
         if let Some(member_names) = members {
             for member in member_names {
-                self.put_empty(&format!("/orgs/{}/teams/{}/memberships/{}", self.org_name, team.slug, member)).await?;
+                self.put_empty(&format!(
+                    "/orgs/{}/teams/{}/memberships/{}",
+                    self.org_name, team.slug, member
+                ))
+                .await?;
             }
             member_list = member_names.to_vec();
         }
@@ -263,10 +307,13 @@ impl PlatformAPI for GitHubAPI {
     }
 
     async fn delete_team(&self, team: &Team) -> Result<()> {
-        let team_obj = self.get_team_by_name(&team.name).await?
+        let team_obj = self
+            .get_team_by_name(&team.name)
+            .await?
             .ok_or_else(|| PlatformError::not_found(format!("Team '{}' not found", team.name)))?;
 
-        self.delete(&format!("/orgs/{}/teams/{}", self.org_name, team_obj.slug)).await
+        self.delete(&format!("/orgs/{}/teams/{}", self.org_name, team_obj.slug))
+            .await
     }
 
     async fn get_teams(&self, team_names: Option<&[String]>) -> Result<Vec<Team>> {
@@ -288,8 +335,15 @@ impl PlatformAPI for GitHubAPI {
         Ok(result_teams)
     }
 
-    async fn assign_repo(&self, team: &Team, repo: &Repo, permission: TeamPermission) -> Result<()> {
-        let team_obj = self.get_team_by_name(&team.name).await?
+    async fn assign_repo(
+        &self,
+        team: &Team,
+        repo: &Repo,
+        permission: TeamPermission,
+    ) -> Result<()> {
+        let team_obj = self
+            .get_team_by_name(&team.name)
+            .await?
             .ok_or_else(|| PlatformError::not_found(format!("Team '{}' not found", team.name)))?;
 
         #[derive(Serialize)]
@@ -302,9 +356,14 @@ impl PlatformAPI for GitHubAPI {
         };
 
         self.put(
-            &format!("/orgs/{}/teams/{}/repos/{}/{}", self.org_name, team_obj.slug, self.org_name, repo.name),
-            &body
-        ).await.map(|_: serde_json::Value| ())
+            &format!(
+                "/orgs/{}/teams/{}/repos/{}/{}",
+                self.org_name, team_obj.slug, self.org_name, repo.name
+            ),
+            &body,
+        )
+        .await
+        .map(|_: serde_json::Value| ())
     }
 
     async fn assign_members(
@@ -313,11 +372,17 @@ impl PlatformAPI for GitHubAPI {
         members: &[String],
         _permission: TeamPermission,
     ) -> Result<()> {
-        let team_obj = self.get_team_by_name(&team.name).await?
+        let team_obj = self
+            .get_team_by_name(&team.name)
+            .await?
             .ok_or_else(|| PlatformError::not_found(format!("Team '{}' not found", team.name)))?;
 
         for member in members {
-            self.put_empty(&format!("/orgs/{}/teams/{}/memberships/{}", self.org_name, team_obj.slug, member)).await?;
+            self.put_empty(&format!(
+                "/orgs/{}/teams/{}/memberships/{}",
+                self.org_name, team_obj.slug, member
+            ))
+            .await?;
         }
 
         Ok(())
@@ -331,7 +396,10 @@ impl PlatformAPI for GitHubAPI {
         team: Option<&Team>,
     ) -> Result<Repo> {
         // Check if repo already exists
-        match self.get::<GitHubRepo>(&format!("/repos/{}/{}", self.org_name, name)).await {
+        match self
+            .get::<GitHubRepo>(&format!("/repos/{}/{}", self.org_name, name))
+            .await
+        {
             Ok(existing_repo) => {
                 let repo = Repo::new(
                     existing_repo.name,
@@ -357,7 +425,9 @@ impl PlatformAPI for GitHubAPI {
             private,
         };
 
-        let repo: GitHubRepo = self.post(&format!("/orgs/{}/repos", self.org_name), &request).await?;
+        let repo: GitHubRepo = self
+            .post(&format!("/orgs/{}/repos", self.org_name), &request)
+            .await?;
         let result_repo = Repo::new(
             repo.name,
             repo.description.unwrap_or_default(),
@@ -367,18 +437,22 @@ impl PlatformAPI for GitHubAPI {
 
         // Assign to team if provided
         if let Some(t) = team {
-            self.assign_repo(t, &result_repo, TeamPermission::Push).await?;
+            self.assign_repo(t, &result_repo, TeamPermission::Push)
+                .await?;
         }
 
         Ok(result_repo)
     }
 
     async fn delete_repo(&self, repo: &Repo) -> Result<()> {
-        self.delete(&format!("/repos/{}/{}", self.org_name, repo.name)).await
+        self.delete(&format!("/repos/{}/{}", self.org_name, repo.name))
+            .await
     }
 
     async fn get_repos(&self, repo_urls: Option<&[String]>) -> Result<Vec<Repo>> {
-        let repos: Vec<GitHubRepo> = self.get(&format!("/orgs/{}/repos?per_page=100", self.org_name)).await?;
+        let repos: Vec<GitHubRepo> = self
+            .get(&format!("/orgs/{}/repos?per_page=100", self.org_name))
+            .await?;
         let mut result_repos = Vec::new();
 
         for repo in repos {
@@ -403,7 +477,9 @@ impl PlatformAPI for GitHubAPI {
     }
 
     async fn get_repo(&self, repo_name: &str, _team_name: Option<&str>) -> Result<Repo> {
-        let repo: GitHubRepo = self.get(&format!("/repos/{}/{}", self.org_name, repo_name)).await?;
+        let repo: GitHubRepo = self
+            .get(&format!("/repos/{}/{}", self.org_name, repo_name))
+            .await?;
         Ok(Repo::new(
             repo.name,
             repo.description.unwrap_or_default(),
@@ -413,16 +489,28 @@ impl PlatformAPI for GitHubAPI {
     }
 
     async fn get_team_repos(&self, team: &Team) -> Result<Vec<Repo>> {
-        let team_obj = self.get_team_by_name(&team.name).await?
+        let team_obj = self
+            .get_team_by_name(&team.name)
+            .await?
             .ok_or_else(|| PlatformError::not_found(format!("Team '{}' not found", team.name)))?;
 
-        let repos: Vec<GitHubRepo> = self.get(&format!("/orgs/{}/teams/{}/repos", self.org_name, team_obj.slug)).await?;
-        Ok(repos.into_iter().map(|r| Repo::new(
-            r.name,
-            r.description.unwrap_or_default(),
-            r.private,
-            r.html_url,
-        )).collect())
+        let repos: Vec<GitHubRepo> = self
+            .get(&format!(
+                "/orgs/{}/teams/{}/repos",
+                self.org_name, team_obj.slug
+            ))
+            .await?;
+        Ok(repos
+            .into_iter()
+            .map(|r| {
+                Repo::new(
+                    r.name,
+                    r.description.unwrap_or_default(),
+                    r.private,
+                    r.html_url,
+                )
+            })
+            .collect())
     }
 
     fn get_repo_urls(
@@ -483,10 +571,12 @@ impl PlatformAPI for GitHubAPI {
             assignees: assignees.map(|a| a.to_vec()),
         };
 
-        let issue: GitHubIssue = self.post(
-            &format!("/repos/{}/{}/issues", self.org_name, repo.name),
-            &request
-        ).await?;
+        let issue: GitHubIssue = self
+            .post(
+                &format!("/repos/{}/{}/issues", self.org_name, repo.name),
+                &request,
+            )
+            .await?;
 
         let state = if issue.state == "open" {
             Some(IssueState::Open)
@@ -507,7 +597,8 @@ impl PlatformAPI for GitHubAPI {
     }
 
     async fn close_issue(&self, issue: &Issue, repo: &Repo) -> Result<()> {
-        let issue_number = issue.number
+        let issue_number = issue
+            .number
             .ok_or_else(|| PlatformError::Other("Issue has no number".to_string()))?;
 
         let request = UpdateIssueRequest {
@@ -515,9 +606,14 @@ impl PlatformAPI for GitHubAPI {
         };
 
         self.patch::<serde_json::Value, _>(
-            &format!("/repos/{}/{}/issues/{}", self.org_name, repo.name, issue_number),
-            &request
-        ).await.map(|_| ())
+            &format!(
+                "/repos/{}/{}/issues/{}",
+                self.org_name, repo.name, issue_number
+            ),
+            &request,
+        )
+        .await
+        .map(|_| ())
     }
 
     async fn get_repo_issues(&self, repo: &Repo, state: IssueState) -> Result<Vec<Issue>> {
@@ -527,28 +623,34 @@ impl PlatformAPI for GitHubAPI {
             IssueState::All => "all",
         };
 
-        let issues: Vec<GitHubIssue> = self.get(
-            &format!("/repos/{}/{}/issues?state={}&per_page=100", self.org_name, repo.name, state_str)
-        ).await?;
+        let issues: Vec<GitHubIssue> = self
+            .get(&format!(
+                "/repos/{}/{}/issues?state={}&per_page=100",
+                self.org_name, repo.name, state_str
+            ))
+            .await?;
 
-        Ok(issues.into_iter().map(|i| {
-            let state = if i.state == "open" {
-                Some(IssueState::Open)
-            } else if i.state == "closed" {
-                Some(IssueState::Closed)
-            } else {
-                None
-            };
+        Ok(issues
+            .into_iter()
+            .map(|i| {
+                let state = if i.state == "open" {
+                    Some(IssueState::Open)
+                } else if i.state == "closed" {
+                    Some(IssueState::Closed)
+                } else {
+                    None
+                };
 
-            Issue {
-                title: i.title,
-                body: i.body.unwrap_or_default(),
-                number: Some(i.number as u32),
-                created_at: Some(i.created_at),
-                author: Some(i.user.login),
-                state,
-            }
-        }).collect())
+                Issue {
+                    title: i.title,
+                    body: i.body.unwrap_or_default(),
+                    number: Some(i.number as u32),
+                    created_at: Some(i.created_at),
+                    author: Some(i.user.login),
+                    state,
+                }
+            })
+            .collect())
     }
 
     fn insert_auth(&self, url: &str) -> Result<String> {
@@ -557,7 +659,10 @@ impl PlatformAPI for GitHubAPI {
             let (protocol, rest) = url.split_at(idx + 3);
             Ok(format!("{}oauth2:{}@{}", protocol, self.token, rest))
         } else {
-            Err(PlatformError::invalid_url(format!("Invalid URL format: {}", url)))
+            Err(PlatformError::invalid_url(format!(
+                "Invalid URL format: {}",
+                url
+            )))
         }
     }
 

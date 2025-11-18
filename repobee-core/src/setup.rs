@@ -9,8 +9,8 @@
 use crate::error::{PlatformError, Result};
 use crate::platform::PlatformAPI;
 use crate::types::{StudentRepo, StudentTeam, Team, TeamPermission, TemplateRepo};
+use git2::{Cred, PushOptions, RemoteCallbacks, Repository};
 use std::path::Path;
-use git2::{Repository, RemoteCallbacks, PushOptions, Cred};
 
 /// Result of the setup operation
 #[derive(Debug, Clone)]
@@ -151,7 +151,15 @@ pub async fn create_student_repos<P: PlatformAPI>(
             let repo_name = format!("{}-{}", team.name, template.name);
 
             // Try to create the repository
-            match api.create_repo(&repo_name, &format!("Repository for team {}", team.name), private, Some(team)).await {
+            match api
+                .create_repo(
+                    &repo_name,
+                    &format!("Repository for team {}", team.name),
+                    private,
+                    Some(team),
+                )
+                .await
+            {
                 Ok(repo) => {
                     // Check if it's a new repo or existing by trying to get it first
                     // For now, we'll assume create_repo handles this and returns the repo
@@ -184,15 +192,19 @@ pub async fn create_student_repos<P: PlatformAPI>(
 /// * `template_path` - Local path to template repository
 /// * `student_repo_url` - URL of student repository
 /// * `token` - Optional authentication token
-pub fn push_to_repo(template_path: &Path, student_repo_url: &str, token: Option<&str>) -> Result<()> {
-    let repo = Repository::open(template_path)
-        .map_err(|e| PlatformError::GitError(e))?;
+pub fn push_to_repo(
+    template_path: &Path,
+    student_repo_url: &str,
+    token: Option<&str>,
+) -> Result<()> {
+    let repo = Repository::open(template_path).map_err(|e| PlatformError::GitError(e))?;
 
     // Add the student repo as a remote
     let remote_name = "student_repo";
     let mut remote = match repo.find_remote(remote_name) {
         Ok(r) => r,
-        Err(_) => repo.remote(remote_name, student_repo_url)
+        Err(_) => repo
+            .remote(remote_name, student_repo_url)
             .map_err(|e| PlatformError::GitError(e))?,
     };
 
@@ -274,7 +286,9 @@ pub async fn setup_student_repos<P: PlatformAPI>(
     }
 
     if templates.is_empty() {
-        return Err(PlatformError::Other("No templates cloned successfully".to_string()));
+        return Err(PlatformError::Other(
+            "No templates cloned successfully".to_string(),
+        ));
     }
 
     // Step 2: Create/setup teams
@@ -293,21 +307,27 @@ pub async fn setup_student_repos<P: PlatformAPI>(
     // Step 3: Create student repositories
     println!("\nCreating student repositories...");
     let total_repos = platform_teams.len() * templates.len();
-    println!("Expected repos: {} teams × {} templates = {}", platform_teams.len(), templates.len(), total_repos);
+    println!(
+        "Expected repos: {} teams × {} templates = {}",
+        platform_teams.len(),
+        templates.len(),
+        total_repos
+    );
 
-    let (newly_created, already_existing) = match create_student_repos(&platform_teams, &templates, api, private).await {
-        Ok((new, existing)) => {
-            println!("✓ Created {} new repositories", new.len());
-            if !existing.is_empty() {
-                println!("  {} repositories already existed", existing.len());
+    let (newly_created, already_existing) =
+        match create_student_repos(&platform_teams, &templates, api, private).await {
+            Ok((new, existing)) => {
+                println!("✓ Created {} new repositories", new.len());
+                if !existing.is_empty() {
+                    println!("  {} repositories already existed", existing.len());
+                }
+                (new, existing)
             }
-            (new, existing)
-        }
-        Err(e) => {
-            eprintln!("✗ Failed to create repositories: {}", e);
-            return Err(e);
-        }
-    };
+            Err(e) => {
+                eprintln!("✗ Failed to create repositories: {}", e);
+                return Err(e);
+            }
+        };
 
     // Step 4: Push template content to student repositories
     println!("\nPushing template content to student repositories...");
@@ -315,7 +335,8 @@ pub async fn setup_student_repos<P: PlatformAPI>(
         // Find the corresponding template
         // Student repo name format: {team-name}-{template-name}
         // Extract template name (last component after last hyphen before team name)
-        let template_name = student_repo.name
+        let template_name = student_repo
+            .name
             .split('-')
             .last()
             .unwrap_or(&student_repo.name);
@@ -343,7 +364,10 @@ pub async fn setup_student_repos<P: PlatformAPI>(
 
     println!("\n=== Setup Summary ===");
     println!("Successful: {} repositories", result.successful_repos.len());
-    println!("Already existed: {} repositories", result.existing_repos.len());
+    println!(
+        "Already existed: {} repositories",
+        result.existing_repos.len()
+    );
     println!("Errors: {}", result.errors.len());
 
     Ok(result)
@@ -353,8 +377,8 @@ pub async fn setup_student_repos<P: PlatformAPI>(
 mod tests {
     use super::*;
     use crate::platform::{LocalAPI, Platform};
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     fn create_test_git_repo(path: &Path) -> Repository {
         // Create a new git repository
@@ -379,14 +403,8 @@ mod tests {
 
         {
             let tree = repo.find_tree(tree_id).unwrap();
-            repo.commit(
-                Some("HEAD"),
-                &sig,
-                &sig,
-                "Initial commit",
-                &tree,
-                &[],
-            ).unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "Initial commit", &tree, &[])
+                .unwrap();
         }
 
         repo
@@ -482,7 +500,10 @@ mod tests {
         let teams = teams_result.unwrap();
         assert_eq!(teams.len(), 2);
 
-        let templates = vec![TemplateRepo::new("template-repo".to_string(), template_urls[0].clone())];
+        let templates = vec![TemplateRepo::new(
+            "template-repo".to_string(),
+            template_urls[0].clone(),
+        )];
 
         let repos_result = create_student_repos(&teams, &templates, &api, true).await;
         assert!(repos_result.is_ok());
@@ -529,4 +550,3 @@ mod tests {
         assert!(result.is_ok());
     }
 }
-

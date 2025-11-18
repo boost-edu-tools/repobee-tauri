@@ -1,11 +1,8 @@
 use repobee_core::{
-    Platform, PlatformAPI, StudentTeam,
-    MemberOption, YamlConfig,
-    generate_repobee_yaml, write_yaml_file, write_csv_file,
-    create_lms_client_with_params, get_student_info,
-    LmsClientTrait,
-    GuiSettings, SettingsManager,
-    open_token_generation_url, get_token_generation_instructions, LmsCommonType,
+    create_lms_client_with_params, generate_repobee_yaml, get_student_info,
+    get_token_generation_instructions, open_token_generation_url, write_csv_file, write_yaml_file,
+    GuiSettings, LmsClientTrait, LmsCommonType, MemberOption, Platform, PlatformAPI,
+    SettingsManager, StudentTeam, YamlConfig,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -74,10 +71,11 @@ struct CommandResult {
 /// Load settings from disk
 #[tauri::command]
 async fn load_settings() -> Result<GuiSettings, String> {
-    let manager = SettingsManager::new()
-        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager =
+        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
-    let settings = manager.load()
+    let settings = manager
+        .load()
         .map_err(|e| format!("Failed to load settings: {}", e))?;
 
     Ok(settings)
@@ -86,10 +84,11 @@ async fn load_settings() -> Result<GuiSettings, String> {
 /// Save settings to disk
 #[tauri::command]
 async fn save_settings(settings: GuiSettings) -> Result<(), String> {
-    let manager = SettingsManager::new()
-        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager =
+        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
-    manager.save(&settings)
+    manager
+        .save(&settings)
         .map_err(|e| format!("Failed to save settings: {}", e))?;
 
     Ok(())
@@ -98,10 +97,11 @@ async fn save_settings(settings: GuiSettings) -> Result<(), String> {
 /// Reset settings to defaults
 #[tauri::command]
 async fn reset_settings() -> Result<GuiSettings, String> {
-    let manager = SettingsManager::new()
-        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager =
+        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
-    let settings = manager.reset()
+    let settings = manager
+        .reset()
         .map_err(|e| format!("Failed to reset settings: {}", e))?;
 
     Ok(settings)
@@ -110,8 +110,8 @@ async fn reset_settings() -> Result<GuiSettings, String> {
 /// Get settings file path
 #[tauri::command]
 async fn get_settings_path() -> Result<String, String> {
-    let manager = SettingsManager::new()
-        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager =
+        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
     Ok(manager.settings_file_path().to_string_lossy().to_string())
 }
@@ -119,8 +119,8 @@ async fn get_settings_path() -> Result<String, String> {
 /// Check if settings file exists
 #[tauri::command]
 async fn settings_exist() -> Result<bool, String> {
-    let manager = SettingsManager::new()
-        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager =
+        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
     Ok(manager.settings_exist())
 }
@@ -132,7 +132,12 @@ async fn get_token_instructions(lms_type: String) -> Result<String, String> {
     let lms_type_enum = match lms_type.as_str() {
         "Canvas" => LmsCommonType::Canvas,
         "Moodle" => LmsCommonType::Moodle,
-        _ => return Err(format!("Unknown LMS type: {}. Supported: Canvas, Moodle", lms_type)),
+        _ => {
+            return Err(format!(
+                "Unknown LMS type: {}. Supported: Canvas, Moodle",
+                lms_type
+            ))
+        }
     };
 
     Ok(get_token_generation_instructions(lms_type_enum).to_string())
@@ -145,7 +150,12 @@ async fn open_token_url(base_url: String, lms_type: String) -> Result<(), String
     let lms_type_enum = match lms_type.as_str() {
         "Canvas" => LmsCommonType::Canvas,
         "Moodle" => LmsCommonType::Moodle,
-        _ => return Err(format!("Unknown LMS type: {}. Supported: Canvas, Moodle", lms_type)),
+        _ => {
+            return Err(format!(
+                "Unknown LMS type: {}. Supported: Canvas, Moodle",
+                lms_type
+            ))
+        }
     };
 
     open_token_generation_url(&base_url, lms_type_enum)
@@ -160,8 +170,9 @@ async fn open_token_url(base_url: String, lms_type: String) -> Result<(), String
 #[tauri::command]
 async fn verify_canvas_course(params: VerifyCourseParams) -> Result<CommandResult, String> {
     // Create unified LMS client (defaults to Canvas)
-    let client = create_lms_client_with_params("Canvas", params.base_url.clone(), params.access_token)
-        .map_err(|e| format!("Failed to create LMS client: {}", e))?;
+    let client =
+        create_lms_client_with_params("Canvas", params.base_url.clone(), params.access_token)
+            .map_err(|e| format!("Failed to create LMS client: {}", e))?;
 
     // Get course info (course_id is now a String)
     let course = client
@@ -214,9 +225,12 @@ async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandRes
             .map_err(|e| format!("Failed to write YAML file: {}", e))?;
 
         // Get absolute path for display
-        let absolute_yaml_path = yaml_path.canonicalize()
-            .unwrap_or(yaml_path.clone());
-        generated_files.push(format!("YAML: {} ({} teams)", absolute_yaml_path.display(), teams.len()));
+        let absolute_yaml_path = yaml_path.canonicalize().unwrap_or(yaml_path.clone());
+        generated_files.push(format!(
+            "YAML: {} ({} teams)",
+            absolute_yaml_path.display(),
+            teams.len()
+        ));
     }
 
     // Generate CSV file if requested
@@ -226,8 +240,7 @@ async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandRes
             .map_err(|e| format!("Failed to write CSV file: {}", e))?;
 
         // Get absolute path for display
-        let absolute_csv_path = csv_path.canonicalize()
-            .unwrap_or(csv_path.clone());
+        let absolute_csv_path = csv_path.canonicalize().unwrap_or(csv_path.clone());
         generated_files.push(format!("CSV: {}", absolute_csv_path.display()));
     }
 
@@ -301,7 +314,10 @@ async fn verify_config(params: ConfigParams) -> Result<CommandResult, String> {
 
     Ok(CommandResult {
         success: true,
-        message: format!("✓ Configuration verified successfully for {}", params.student_repos_group),
+        message: format!(
+            "✓ Configuration verified successfully for {}",
+            params.student_repos_group
+        ),
         details: Some(format!(
             "Platform: {}\nOrganization: {}\nUser: {}",
             platform_name, params.student_repos_group, params.user
@@ -337,13 +353,19 @@ async fn setup_repos(params: SetupParams) -> Result<CommandResult, String> {
         .map(|assignment| {
             let path = if params.config.template_group.is_empty() {
                 // No template group specified, use student repos group
-                format!("{}/{}/{}", params.config.base_url, params.config.student_repos_group, assignment)
+                format!(
+                    "{}/{}/{}",
+                    params.config.base_url, params.config.student_repos_group, assignment
+                )
             } else if params.config.template_group.starts_with('/') {
                 // Template group is an absolute path, use it directly
                 format!("{}/{}", params.config.template_group, assignment)
             } else {
                 // Template group is relative, concatenate with base URL
-                format!("{}/{}/{}", params.config.base_url, params.config.template_group, assignment)
+                format!(
+                    "{}/{}/{}",
+                    params.config.base_url, params.config.template_group, assignment
+                )
             };
 
             // For local filesystem paths, git2 expects regular paths without file:// prefix
@@ -352,7 +374,9 @@ async fn setup_repos(params: SetupParams) -> Result<CommandResult, String> {
         .collect();
 
     // Determine platform
-    let platform = if params.config.base_url.starts_with('/') || params.config.base_url.contains("local") {
+    let platform = if params.config.base_url.starts_with('/')
+        || params.config.base_url.contains("local")
+    {
         // Local filesystem platform
         Platform::local(
             PathBuf::from(&params.config.base_url),

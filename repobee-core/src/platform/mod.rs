@@ -4,14 +4,14 @@ use crate::error::Result;
 use crate::types::{Issue, IssueState, Repo, Team, TeamPermission};
 use std::path::PathBuf;
 
-pub mod github;
 pub mod gitea;
+pub mod github;
 pub mod gitlab;
 pub mod local;
 
 // Re-export platform implementations
-pub use github::GitHubAPI;
 pub use gitea::GiteaAPI;
+pub use github::GitHubAPI;
 pub use gitlab::GitLabAPI;
 pub use local::LocalAPI;
 
@@ -31,12 +31,16 @@ pub enum Platform {
 impl Platform {
     /// Create a new GitHub platform instance
     pub fn github(base_url: String, token: String, org_name: String, user: String) -> Result<Self> {
-        Ok(Self::GitHub(GitHubAPI::new(base_url, token, org_name, user)?))
+        Ok(Self::GitHub(GitHubAPI::new(
+            base_url, token, org_name, user,
+        )?))
     }
 
     /// Create a new GitLab platform instance
     pub fn gitlab(base_url: String, token: String, org_name: String, user: String) -> Result<Self> {
-        Ok(Self::GitLab(GitLabAPI::new(base_url, token, org_name, user)?))
+        Ok(Self::GitLab(GitLabAPI::new(
+            base_url, token, org_name, user,
+        )?))
     }
 
     /// Create a new Gitea platform instance
@@ -84,7 +88,8 @@ pub trait PlatformAPI {
     async fn get_teams(&self, team_names: Option<&[String]>) -> Result<Vec<Team>>;
 
     /// Assign a repository to a team with the specified permission level
-    async fn assign_repo(&self, team: &Team, repo: &Repo, permission: TeamPermission) -> Result<()>;
+    async fn assign_repo(&self, team: &Team, repo: &Repo, permission: TeamPermission)
+        -> Result<()>;
 
     /// Add members to a team with the specified permission level
     async fn assign_members(
@@ -248,7 +253,12 @@ impl PlatformAPI for Platform {
         }
     }
 
-    async fn assign_repo(&self, team: &Team, repo: &Repo, permission: TeamPermission) -> Result<()> {
+    async fn assign_repo(
+        &self,
+        team: &Team,
+        repo: &Repo,
+        permission: TeamPermission,
+    ) -> Result<()> {
         match self {
             Platform::GitHub(api) => api.assign_repo(team, repo, permission).await,
             Platform::GitLab(api) => api.assign_repo(team, repo, permission).await,
@@ -337,11 +347,19 @@ impl PlatformAPI for Platform {
         insert_auth: bool,
     ) -> Result<Vec<String>> {
         match self {
-            Platform::GitHub(api) => api.get_repo_urls(assignment_names, org_name, team_names, insert_auth),
-            Platform::GitLab(api) => api.get_repo_urls(assignment_names, org_name, team_names, insert_auth),
-            Platform::Gitea(api) => api.get_repo_urls(assignment_names, org_name, team_names, insert_auth),
+            Platform::GitHub(api) => {
+                api.get_repo_urls(assignment_names, org_name, team_names, insert_auth)
+            }
+            Platform::GitLab(api) => {
+                api.get_repo_urls(assignment_names, org_name, team_names, insert_auth)
+            }
+            Platform::Gitea(api) => {
+                api.get_repo_urls(assignment_names, org_name, team_names, insert_auth)
+            }
 
-            Platform::Local(api) => api.get_repo_urls(assignment_names, org_name, team_names, insert_auth),
+            Platform::Local(api) => {
+                api.get_repo_urls(assignment_names, org_name, team_names, insert_auth)
+            }
         }
     }
 

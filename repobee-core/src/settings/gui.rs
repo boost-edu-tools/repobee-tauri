@@ -1,6 +1,6 @@
 use super::common::CommonSettings;
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// GUI-specific settings (extends CommonSettings)
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

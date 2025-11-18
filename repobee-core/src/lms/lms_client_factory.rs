@@ -1,10 +1,9 @@
 ///! Factory for creating unified LMS clients from settings
-
 use crate::error::{PlatformError, Result};
-use crate::settings::CommonSettings;
 use crate::lms::types::StudentInfo;
+use crate::settings::CommonSettings;
 use lms_client::{LmsAuth, LmsClient, LmsType};
-use lms_common::LmsClient as _;  // Import trait to call its methods
+use lms_common::LmsClient as _; // Import trait to call its methods
 use std::collections::HashMap;
 
 /// Create an LMS client based on settings
@@ -71,19 +70,16 @@ pub fn create_lms_client_with_params(
 /// Fetch all student information for a course using the unified LMS client
 pub async fn get_student_info(client: &LmsClient, course_id: &str) -> Result<Vec<StudentInfo>> {
     // Fetch all data in parallel
-    let (users, groups) = tokio::try_join!(
-        client.get_users(course_id),
-        client.get_groups(course_id)
-    )
-    .map_err(|e| PlatformError::Other(format!("Failed to fetch course data: {}", e)))?;
+    let (users, groups) =
+        tokio::try_join!(client.get_users(course_id), client.get_groups(course_id))
+            .map_err(|e| PlatformError::Other(format!("Failed to fetch course data: {}", e)))?;
 
     // Build a map of user_id -> group
     let mut user_to_group = HashMap::new();
     for group in &groups {
-        let memberships = client
-            .get_group_members(&group.id)
-            .await
-            .map_err(|e| PlatformError::Other(format!("Failed to fetch group memberships: {}", e)))?;
+        let memberships = client.get_group_members(&group.id).await.map_err(|e| {
+            PlatformError::Other(format!("Failed to fetch group memberships: {}", e))
+        })?;
 
         for membership in memberships {
             user_to_group.insert(membership.user_id.clone(), group.clone());

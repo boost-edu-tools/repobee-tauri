@@ -55,7 +55,12 @@ impl PlatformAPI for GitLabAPI {
         ))
     }
 
-    async fn assign_repo(&self, _team: &Team, _repo: &Repo, _permission: TeamPermission) -> Result<()> {
+    async fn assign_repo(
+        &self,
+        _team: &Team,
+        _repo: &Repo,
+        _permission: TeamPermission,
+    ) -> Result<()> {
         Err(PlatformError::Other(
             "GitLab implementation not yet implemented".to_string(),
         ))

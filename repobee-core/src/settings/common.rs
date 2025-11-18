@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Common settings shared between GUI and CLI
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

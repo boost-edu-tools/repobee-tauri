@@ -55,7 +55,12 @@ impl PlatformAPI for GiteaAPI {
         ))
     }
 
-    async fn assign_repo(&self, _team: &Team, _repo: &Repo, _permission: TeamPermission) -> Result<()> {
+    async fn assign_repo(
+        &self,
+        _team: &Team,
+        _repo: &Repo,
+        _permission: TeamPermission,
+    ) -> Result<()> {
         Err(PlatformError::Other(
             "Gitea implementation not yet implemented".to_string(),
         ))
