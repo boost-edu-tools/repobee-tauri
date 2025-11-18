@@ -220,7 +220,7 @@ async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandRes
         let teams = generate_repobee_yaml(&students, &config)
             .map_err(|e| format!("Failed to generate YAML: {}", e))?;
 
-        let yaml_path = PathBuf::from(&params.yaml_file);
+        let yaml_path = PathBuf::from(&params.info_file_folder).join(&params.yaml_file);
         write_yaml_file(&teams, &yaml_path)
             .map_err(|e| format!("Failed to write YAML file: {}", e))?;
 
