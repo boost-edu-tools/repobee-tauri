@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 pub struct CommonSettings {
     // ===== LMS Settings =====
     #[serde(default = "defaults::lms_type")]
-    pub lms_type: String, // "Canvas", "Moodle", or "Blackboard"
+    pub lms_type: String, // "Canvas" or "Moodle"
 
     // ===== Canvas Settings =====
     #[serde(default = "defaults::canvas_base_url")]

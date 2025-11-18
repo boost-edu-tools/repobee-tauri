@@ -13,10 +13,9 @@ pub fn create_lms_client(settings: &CommonSettings) -> Result<LmsClient> {
     let lms_type = match settings.lms_type.as_str() {
         "Canvas" => LmsType::Canvas,
         "Moodle" => LmsType::Moodle,
-        "Blackboard" => LmsType::Blackboard,
         _ => {
             return Err(PlatformError::Other(format!(
-                "Unknown LMS type: {}. Must be Canvas, Moodle, or Blackboard",
+                "Unknown LMS type: {}. Supported: Canvas, Moodle",
                 settings.lms_type
             )))
         }
@@ -30,23 +29,14 @@ pub fn create_lms_client(settings: &CommonSettings) -> Result<LmsClient> {
             settings.canvas_custom_url.clone()
         }
     } else {
-        // For Moodle/Blackboard, use canvas_custom_url field (or add dedicated fields)
+        // For Moodle, use canvas_custom_url field (or add dedicated fields)
         settings.canvas_custom_url.clone()
     };
 
-    // Create authentication based on LMS type
-    let auth = match lms_type {
-        LmsType::Canvas | LmsType::Moodle => LmsAuth::Token {
-            url: base_url,
-            token: settings.canvas_access_token.clone(),
-        },
-        LmsType::Blackboard => {
-            // TODO: Add app_key and app_secret fields to settings for Blackboard
-            return Err(PlatformError::Other(
-                "Blackboard support requires app_key and app_secret in settings (not yet implemented)"
-                    .to_string(),
-            ));
-        }
+    // Create authentication (both Canvas and Moodle use token auth)
+    let auth = LmsAuth::Token {
+        url: base_url,
+        token: settings.canvas_access_token.clone(),
     };
 
     // Create the unified client
@@ -62,10 +52,9 @@ pub fn create_lms_client_with_params(
     let lms_type = match lms_type {
         "Canvas" => LmsType::Canvas,
         "Moodle" => LmsType::Moodle,
-        "Blackboard" => LmsType::Blackboard,
         _ => {
             return Err(PlatformError::Other(format!(
-                "Unknown LMS type: {}",
+                "Unknown LMS type: {}. Supported: Canvas, Moodle",
                 lms_type
             )))
         }
