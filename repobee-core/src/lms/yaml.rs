@@ -4,12 +4,12 @@ use crate::types::StudentTeam;
 use std::collections::HashMap;
 use std::path::Path;
 
-/// Generate RepoBee-compatible YAML from Canvas student information
+/// Generate RepoBee-compatible YAML from LMS student information
 pub fn generate_repobee_yaml(
     students: &[StudentInfo],
     config: &YamlConfig,
 ) -> Result<Vec<StudentTeam>> {
-    // Group students by their Canvas group
+    // Group students by their LMS group
     let mut group_map: HashMap<String, Vec<&StudentInfo>> = HashMap::new();
 
     for student in students {

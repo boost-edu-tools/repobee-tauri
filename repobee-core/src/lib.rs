@@ -3,7 +3,7 @@
 //! This crate provides the core abstractions and types for RepoBee,
 //! including platform API abstraction for GitHub, GitLab, and Gitea.
 
-pub mod canvas;
+pub mod lms;
 pub mod error;
 pub mod platform;
 pub mod settings;
@@ -16,8 +16,8 @@ pub use platform::{Platform, PlatformAPI};
 pub use setup::{setup_student_repos, SetupResult, SetupError};
 pub use types::{Issue, IssueState, Repo, StudentRepo, StudentTeam, Team, TeamPermission, TemplateRepo};
 
-// LMS and Canvas re-exports
-pub use canvas::{
+// LMS re-exports
+pub use lms::{
     StudentInfo, YamlConfig, MemberOption,
     generate_repobee_yaml, write_yaml_file, write_csv_file,
     create_lms_client_with_params, get_student_info,  // LMS client factory functions

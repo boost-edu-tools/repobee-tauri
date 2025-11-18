@@ -2,7 +2,7 @@
 
 use crate::error::{PlatformError, Result};
 use crate::settings::CommonSettings;
-use crate::canvas::types::StudentInfo;
+use crate::lms::types::StudentInfo;
 use lms_client::{LmsAuth, LmsClient, LmsType};
 use lms_common::LmsClient as _;  // Import trait to call its methods
 use std::collections::HashMap;
