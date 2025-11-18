@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, Channel } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import "./App.css";
 
@@ -384,6 +384,34 @@ function App() {
     try {
       appendOutput("Generating files from Canvas...");
 
+      const PROGRESS_PREFIX = "[PROGRESS]";
+      const PROGRESS_DISPLAY_PREFIX = "(progress) ";
+      const progressChannel = new Channel<string>();
+      progressChannel.onmessage = (message) => {
+        if (message.startsWith(PROGRESS_PREFIX)) {
+          const progressText = message.slice(PROGRESS_PREFIX.length).trimStart();
+          const displayLine = `${PROGRESS_DISPLAY_PREFIX}${progressText}`;
+          setOutputText((prev) => {
+            const lines = prev.split("\n");
+            while (lines.length && lines[lines.length - 1].trim() === "") {
+              lines.pop();
+            }
+            if (
+              lines.length > 0 &&
+              lines[lines.length - 1].startsWith(PROGRESS_DISPLAY_PREFIX)
+            ) {
+              lines[lines.length - 1] = displayLine;
+            } else {
+              lines.push(displayLine);
+            }
+            return lines.join("\n");
+          });
+          return;
+        }
+
+        appendOutput(message);
+      };
+
       const result = await invoke<{ success: boolean; message: string; details?: string }>(
         "generate_canvas_files",
         {
@@ -404,6 +432,7 @@ function App() {
             xlsx: canvasForm.xlsx,
             yaml: canvasForm.yaml,
           },
+          progress: progressChannel,
         }
       );
 

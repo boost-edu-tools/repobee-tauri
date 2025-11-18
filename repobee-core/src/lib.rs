@@ -20,14 +20,9 @@ pub use types::{
 
 // LMS re-exports
 pub use lms::{
-    create_lms_client_with_params,
-    generate_repobee_yaml,
-    get_student_info, // LMS client factory functions
-    write_csv_file,
-    write_yaml_file,
-    MemberOption,
-    StudentInfo,
-    YamlConfig,
+    create_lms_client_with_params, generate_repobee_yaml, generate_repobee_yaml_with_progress,
+    get_student_info, get_student_info_with_progress, write_csv_file, write_yaml_file,
+    FetchProgress, MemberOption, StudentInfo, YamlConfig,
 };
 
 // Re-export lms-common types (used throughout the app)

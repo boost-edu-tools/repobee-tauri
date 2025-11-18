@@ -9,6 +9,18 @@ pub fn generate_repobee_yaml(
     students: &[StudentInfo],
     config: &YamlConfig,
 ) -> Result<Vec<StudentTeam>> {
+    generate_repobee_yaml_with_progress(students, config, |_, _, _| {})
+}
+
+/// Generate RepoBee-compatible YAML from LMS student information with progress callback
+pub fn generate_repobee_yaml_with_progress<F>(
+    students: &[StudentInfo],
+    config: &YamlConfig,
+    mut progress_callback: F,
+) -> Result<Vec<StudentTeam>>
+where
+    F: FnMut(usize, usize, &str),
+{
     // Group students by their LMS group
     let mut group_map: HashMap<String, Vec<&StudentInfo>> = HashMap::new();
 
@@ -40,7 +52,12 @@ pub fn generate_repobee_yaml(
 
     // Generate teams
     let mut teams = Vec::new();
+    let total_groups = group_map.len();
+    let mut processed_groups = 0;
     for (group_name, group_students) in group_map {
+        processed_groups += 1;
+        progress_callback(processed_groups, total_groups, &group_name);
+
         let team_name = generate_team_name(&group_name, group_students.as_slice(), config);
 
         let members: Vec<String> = group_students

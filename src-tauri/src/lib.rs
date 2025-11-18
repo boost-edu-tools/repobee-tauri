@@ -1,11 +1,61 @@
 use repobee_core::{
-    create_lms_client_with_params, generate_repobee_yaml, get_student_info,
-    get_token_generation_instructions, open_token_generation_url, write_csv_file, write_yaml_file,
-    GuiSettings, LmsClientTrait, LmsCommonType, MemberOption, Platform, PlatformAPI,
-    SettingsManager, StudentTeam, YamlConfig,
+    create_lms_client_with_params, generate_repobee_yaml_with_progress,
+    get_student_info_with_progress, get_token_generation_instructions, open_token_generation_url,
+    write_csv_file, write_yaml_file, FetchProgress, GuiSettings, LmsClientTrait, LmsCommonType,
+    MemberOption, Platform, PlatformAPI, SettingsManager, StudentTeam, YamlConfig,
 };
 use serde::{Deserialize, Serialize};
+use std::io::{self, Write};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use tauri::ipc::Channel;
+
+const PROGRESS_PREFIX: &str = "[PROGRESS]";
+
+#[derive(Default)]
+struct InlineCliState {
+    active: bool,
+    last_len: usize,
+}
+
+impl InlineCliState {
+    fn update(&mut self, message: &str) {
+        print!("\r{}", message);
+        if message.len() < self.last_len {
+            let padding = " ".repeat(self.last_len - message.len());
+            print!("{}", padding);
+        }
+        if let Err(e) = io::stdout().flush() {
+            eprintln!("Failed to flush CLI progress: {}", e);
+        }
+        self.last_len = message.len();
+        self.active = true;
+    }
+
+    fn finalize(&mut self) {
+        if self.active {
+            println!();
+            self.active = false;
+            self.last_len = 0;
+        }
+    }
+}
+
+fn emit_gui_message(channel: &Channel<String>, payload: String) {
+    if let Err(e) = channel.send(payload) {
+        eprintln!("Failed to send progress update: {}", e);
+    }
+}
+
+fn emit_standard_message(channel: &Channel<String>, message: &str) {
+    emit_gui_message(channel, message.to_string());
+    println!("{}", message);
+}
+
+fn emit_inline_message(channel: &Channel<String>, state: &mut InlineCliState, message: &str) {
+    emit_gui_message(channel, format!("{} {}", PROGRESS_PREFIX, message));
+    state.update(message);
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct VerifyCourseParams {
@@ -194,17 +244,77 @@ async fn verify_canvas_course(params: VerifyCourseParams) -> Result<CommandResul
 
 /// Generate student files from Canvas course
 #[tauri::command]
-async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandResult, String> {
+async fn generate_canvas_files(
+    params: GenerateFilesParams,
+    progress: Channel<String>,
+) -> Result<CommandResult, String> {
     // Create unified LMS client (defaults to Canvas)
     let client = create_lms_client_with_params("Canvas", params.base_url, params.access_token)
         .map_err(|e| format!("Failed to create LMS client: {}", e))?;
 
+    let cli_progress = Arc::new(Mutex::new(InlineCliState::default()));
+
     // Fetch student information using unified client
-    let students = get_student_info(&client, &params.course_id.to_string())
+    let fetch_progress_state = Arc::clone(&cli_progress);
+    let fetch_progress_channel = progress.clone();
+    let students =
+        get_student_info_with_progress(&client, &params.course_id.to_string(), move |update| {
+            match update {
+                FetchProgress::FetchingUsers => {
+                    emit_standard_message(
+                        &fetch_progress_channel,
+                        "Fetching students from Canvas...",
+                    );
+                }
+                FetchProgress::FetchingGroups => {
+                    emit_standard_message(
+                        &fetch_progress_channel,
+                        "Fetching groups from Canvas...",
+                    );
+                }
+                FetchProgress::FetchedUsers { count } => {
+                    emit_standard_message(
+                        &fetch_progress_channel,
+                        &format!("Retrieved {} students", count),
+                    );
+                }
+                FetchProgress::FetchedGroups { count } => {
+                    emit_standard_message(
+                        &fetch_progress_channel,
+                        &format!("Retrieved {} groups", count),
+                    );
+                }
+                FetchProgress::FetchingGroupMembers {
+                    current,
+                    total,
+                    group_name,
+                } => {
+                    if let Ok(mut state) = fetch_progress_state.lock() {
+                        emit_inline_message(
+                            &fetch_progress_channel,
+                            &mut state,
+                            &format!(
+                                "Fetching Canvas group memberships {}/{}: {}",
+                                current,
+                                total.max(1),
+                                group_name
+                            ),
+                        );
+                    }
+                }
+            }
+        })
         .await
         .map_err(|e| format!("Failed to fetch student info: {}", e))?;
 
+    if let Ok(mut state) = cli_progress.lock() {
+        state.finalize();
+    }
+
     let student_count = students.len();
+
+    let fetched_message = format!("Fetched {} students. Preparing files...", student_count);
+    emit_standard_message(&progress, &fetched_message);
     let mut generated_files = Vec::new();
 
     // Generate YAML file if requested
@@ -217,8 +327,23 @@ async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandRes
             full_groups: params.full_groups,
         };
 
-        let teams = generate_repobee_yaml(&students, &config)
-            .map_err(|e| format!("Failed to generate YAML: {}", e))?;
+        let yaml_progress_state = Arc::clone(&cli_progress);
+        let yaml_progress_channel = progress.clone();
+        let teams = generate_repobee_yaml_with_progress(
+            &students,
+            &config,
+            move |current, total, group_name| {
+                let message = format!("Processing group {}/{}: {}", current, total, group_name);
+                if let Ok(mut state) = yaml_progress_state.lock() {
+                    emit_inline_message(&yaml_progress_channel, &mut state, &message);
+                }
+            },
+        )
+        .map_err(|e| format!("Failed to generate YAML: {}", e))?;
+
+        if let Ok(mut state) = cli_progress.lock() {
+            state.finalize();
+        }
 
         let yaml_path = PathBuf::from(&params.info_file_folder).join(&params.yaml_file);
         write_yaml_file(&teams, &yaml_path)

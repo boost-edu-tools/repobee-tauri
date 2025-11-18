@@ -67,16 +67,60 @@ pub fn create_lms_client_with_params(
     LmsClient::new(lms_type, auth).map_err(|e| PlatformError::Other(e.to_string()))
 }
 
+#[derive(Debug, Clone)]
+pub enum FetchProgress {
+    FetchingUsers,
+    FetchingGroups,
+    FetchedUsers {
+        count: usize,
+    },
+    FetchedGroups {
+        count: usize,
+    },
+    FetchingGroupMembers {
+        current: usize,
+        total: usize,
+        group_name: String,
+    },
+}
+
 /// Fetch all student information for a course using the unified LMS client
 pub async fn get_student_info(client: &LmsClient, course_id: &str) -> Result<Vec<StudentInfo>> {
-    // Fetch all data in parallel
+    get_student_info_with_progress(client, course_id, |_| {}).await
+}
+
+/// Same as [`get_student_info`] but reports progress via callback
+pub async fn get_student_info_with_progress<F>(
+    client: &LmsClient,
+    course_id: &str,
+    mut progress_callback: F,
+) -> Result<Vec<StudentInfo>>
+where
+    F: FnMut(FetchProgress),
+{
+    progress_callback(FetchProgress::FetchingUsers);
+    progress_callback(FetchProgress::FetchingGroups);
+
+    // Fetch users and groups in parallel
     let (users, groups) =
         tokio::try_join!(client.get_users(course_id), client.get_groups(course_id))
             .map_err(|e| PlatformError::Other(format!("Failed to fetch course data: {}", e)))?;
 
-    // Build a map of user_id -> group
+    progress_callback(FetchProgress::FetchedUsers { count: users.len() });
+    progress_callback(FetchProgress::FetchedGroups {
+        count: groups.len(),
+    });
+
+    // Build a map of user_id -> group, reporting progress per group
     let mut user_to_group = HashMap::new();
-    for group in &groups {
+    let total_groups = groups.len();
+    for (idx, group) in groups.iter().enumerate() {
+        progress_callback(FetchProgress::FetchingGroupMembers {
+            current: idx + 1,
+            total: total_groups.max(1),
+            group_name: group.name.clone(),
+        });
+
         let memberships = client.get_group_members(&group.id).await.map_err(|e| {
             PlatformError::Other(format!("Failed to fetch group memberships: {}", e))
         })?;
