@@ -24,7 +24,11 @@ pub use canvas::{
 };
 
 // Re-export lms-common types (used throughout the app)
-pub use lms_common::{Course, Group, GroupMembership, User, LmsClient as LmsClientTrait};
+pub use lms_common::{
+    Course, Group, GroupMembership, User, LmsClient as LmsClientTrait,
+    open_token_generation_url, get_token_generation_url, get_token_generation_instructions,
+    LmsType as LmsCommonType,
+};
 
 // Re-export unified LMS client
 pub use lms_client::{LmsClient, LmsAuth, LmsType};

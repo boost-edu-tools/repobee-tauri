@@ -5,6 +5,7 @@ use repobee_core::{
     create_lms_client_with_params, get_student_info,
     LmsClientTrait,
     GuiSettings, SettingsManager,
+    open_token_generation_url, get_token_generation_instructions, LmsCommonType,
 };
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -124,6 +125,35 @@ async fn settings_exist() -> Result<bool, String> {
     Ok(manager.settings_exist())
 }
 
+/// Get token generation instructions for an LMS type
+#[tauri::command]
+async fn get_token_instructions(lms_type: String) -> Result<String, String> {
+    // Convert string lms_type to LmsCommonType
+    let lms_type_enum = match lms_type.as_str() {
+        "Canvas" => LmsCommonType::Canvas,
+        "Moodle" => LmsCommonType::Moodle,
+        _ => return Err(format!("Unknown LMS type: {}. Supported: Canvas, Moodle", lms_type)),
+    };
+
+    Ok(get_token_generation_instructions(lms_type_enum).to_string())
+}
+
+/// Open the LMS token generation page in the browser
+#[tauri::command]
+async fn open_token_url(base_url: String, lms_type: String) -> Result<(), String> {
+    // Convert string lms_type to LmsCommonType
+    let lms_type_enum = match lms_type.as_str() {
+        "Canvas" => LmsCommonType::Canvas,
+        "Moodle" => LmsCommonType::Moodle,
+        _ => return Err(format!("Unknown LMS type: {}. Supported: Canvas, Moodle", lms_type)),
+    };
+
+    open_token_generation_url(&base_url, lms_type_enum)
+        .map_err(|e| format!("Failed to open token URL: {}", e))?;
+
+    Ok(())
+}
+
 // ===== Canvas Commands =====
 
 /// Verify Canvas course credentials and fetch course information
@@ -183,7 +213,10 @@ async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandRes
         write_yaml_file(&teams, &yaml_path)
             .map_err(|e| format!("Failed to write YAML file: {}", e))?;
 
-        generated_files.push(format!("YAML: {} ({} teams)", params.yaml_file, teams.len()));
+        // Get absolute path for display
+        let absolute_yaml_path = yaml_path.canonicalize()
+            .unwrap_or(yaml_path.clone());
+        generated_files.push(format!("YAML: {} ({} teams)", absolute_yaml_path.display(), teams.len()));
     }
 
     // Generate CSV file if requested
@@ -192,7 +225,10 @@ async fn generate_canvas_files(params: GenerateFilesParams) -> Result<CommandRes
         write_csv_file(&students, &csv_path)
             .map_err(|e| format!("Failed to write CSV file: {}", e))?;
 
-        generated_files.push(format!("CSV: {}", csv_path.display()));
+        // Get absolute path for display
+        let absolute_csv_path = csv_path.canonicalize()
+            .unwrap_or(csv_path.clone());
+        generated_files.push(format!("CSV: {}", absolute_csv_path.display()));
     }
 
     // Generate Excel file if requested (TODO: implement Excel writer)
@@ -417,6 +453,8 @@ pub fn run() {
             reset_settings,
             get_settings_path,
             settings_exist,
+            get_token_instructions,
+            open_token_url,
             verify_canvas_course,
             generate_canvas_files,
             verify_config,
