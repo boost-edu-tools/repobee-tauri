@@ -65,8 +65,31 @@ body {
   margin-bottom: -1px;
 }
 
+.tabs-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
 .tab-content {
-  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 4px;
+  min-height: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 6px;
+}
+
+.tab-content[aria-hidden="true"] {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Fieldsets and sections */

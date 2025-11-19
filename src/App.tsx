@@ -609,9 +609,9 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         </button>
       </div>
 
-      {/* LMS Import Tab */}
-      {activeTab === "lms" && (
-        <>
+      <div className="tabs-container">
+      {/* Tab Content Container */}
+      <div className="tab-content" aria-hidden={activeTab !== "lms"}>
           {/* LMS Configuration */}
           <fieldset className="config-section">
             <legend>LMS configuration</legend>
@@ -868,12 +868,10 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
               placeholder="LMS import output will appear here..."
             />
           </div>
-        </>
-      )}
+      </div>
 
       {/* Repository Setup Tab */}
-      {activeTab === "repo" && (
-        <>
+      <div className="tab-content" aria-hidden={activeTab !== "repo"}>
           {/* Git Server Configuration */}
           <fieldset className="config-section">
         <legend>Git server configuration</legend>
@@ -1135,9 +1133,8 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
           placeholder="Output will appear here..."
         />
       </div>
-
-        </>
-      )}
+      </div>
+      </div>
 
       {/* Git Token Edit Dialog */}
       {tokenDialogOpen && (
