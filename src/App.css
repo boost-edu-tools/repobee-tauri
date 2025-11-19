@@ -28,22 +28,22 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  padding: 8px;
-  gap: 8px;
+  padding: 6px;
+  gap: 4px;
 }
 
 /* Tab Navigation */
 .tab-bar {
   display: flex;
   gap: 0;
-  border-bottom: 2px solid var(--color-border);
-  margin-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 6px;
 }
 
 .tab-button {
   flex: 1;
-  padding: 8px 16px;
-  font-size: 13px;
+  padding: 6px 12px;
+  font-size: 12px;
   font-weight: 500;
   background-color: var(--color-fieldset-bg);
   border: 1px solid var(--color-border);
@@ -61,8 +61,8 @@ body {
 .tab-button.active {
   background-color: var(--color-bg);
   font-weight: 600;
-  border-bottom: 2px solid var(--color-bg);
-  margin-bottom: -2px;
+  border-bottom: 1px solid var(--color-bg);
+  margin-bottom: -1px;
 }
 
 .tab-content {
@@ -73,7 +73,7 @@ body {
 fieldset {
   border: 1px solid var(--color-border);
   border-radius: 4px;
-  padding: 8px;
+  padding: 6px;
   margin: 0;
 }
 
@@ -85,15 +85,16 @@ legend {
 
 .config-section {
   background-color: var(--color-fieldset-bg);
+  padding: 6px;
 }
 
 /* Form rows */
 .form-row {
   display: grid;
-  grid-template-columns: 160px 1fr auto auto;
+  grid-template-columns: 120px 1fr auto auto;
   align-items: center;
   gap: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .form-row:last-child {
@@ -205,7 +206,7 @@ button:disabled {
 
 .options-subsection {
   background-color: var(--color-input-bg);
-  padding: 8px;
+  padding: 4px 6px 6px;
 }
 
 .radio-group,
