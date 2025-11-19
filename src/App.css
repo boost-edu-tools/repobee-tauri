@@ -66,7 +66,7 @@ body {
 }
 
 .tab-content {
-  padding: 16px;
+  padding: 6px;
 }
 
 /* Fieldsets and sections */
@@ -200,13 +200,13 @@ button:disabled {
 .options-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 6px;
 }
 
 .options-subsection {
   background-color: var(--color-input-bg);
-  padding: 4px 6px 6px;
+  padding: 4px 6px;
 }
 
 .radio-group,
