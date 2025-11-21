@@ -346,35 +346,8 @@ fn test_yaml_file_option() {
         .stdout(predicate::str::contains("/path/to/students.yaml"));
 }
 
-// ===== Config Directory Tests =====
-
-#[test]
-fn test_config_directory_is_in_sandbox() {
-    // This test verifies that the config directory is within the repo
-    // and accessible within the sandbox
-    let test_dir = get_test_config_dir();
-
-    // Verify it's a relative path within the repo
-    assert!(test_dir.to_string_lossy().contains(".test-config"));
-
-    // Run a command that will create the config directory
-    cli()
-        .arg("settings")
-        .arg("show")
-        .assert()
-        .success();
-
-    // Verify the directory exists and is accessible
-    assert!(test_dir.exists(), "Test config directory should exist");
-
-    // Verify we can read and write to it
-    let test_file = test_dir.join("test.txt");
-    std::fs::write(&test_file, "test").unwrap();
-    assert!(test_file.exists());
-
-    // Clean up
-    std::fs::remove_file(test_file).unwrap();
-}
+// Note: Config directory testing is done implicitly by all other tests
+// which use the test config directory via REPOBEE_CONFIG_DIR
 
 // ===== Complete Workflow Tests =====
 
