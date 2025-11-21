@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import type { GuiSettings } from "../types/settings";
@@ -25,6 +25,14 @@ export function SettingsMenu({
   const [profiles, setProfiles] = useState<string[]>([]);
   const [activeProfile, setActiveProfile] = useState<string | null>(null);
   const [newProfileName, setNewProfileName] = useState<string>("");
+  const schemaRef = useRef<HTMLPreElement>(null);
+
+  // Auto-scroll to schema when it becomes visible
+  useEffect(() => {
+    if (schemaVisible && schemaRef.current) {
+      schemaRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [schemaVisible]);
 
   // Load current settings path when menu opens
   const loadSettingsPath = async () => {
@@ -180,11 +188,14 @@ export function SettingsMenu({
       try {
         const schemaData = await invoke<any>("get_settings_schema");
         setSchema(schemaData);
+        setSchemaVisible(true); // Show immediately after loading
+        return; // Don't toggle below
       } catch (error) {
         onMessage(`✗ Failed to load schema: ${error}`);
         return;
       }
     }
+    // Schema already loaded, just toggle visibility
     setSchemaVisible(!schemaVisible);
   };
 
@@ -302,7 +313,7 @@ export function SettingsMenu({
               </button>
             </div>
             <p className="help-text">
-              Reset all settings to default values or reset the settings file location.
+              Reset and save all settings to default values, or reset and save the settings file location.
             </p>
           </section>
 
@@ -313,7 +324,7 @@ export function SettingsMenu({
               {schemaVisible ? "Hide" : "View"} JSON Schema
             </button>
             {schemaVisible && schema && (
-              <pre className="schema-display">
+              <pre ref={schemaRef} className="schema-display">
                 {JSON.stringify(schema, null, 2)}
               </pre>
             )}
