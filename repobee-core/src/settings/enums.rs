@@ -120,20 +120,20 @@ impl FromStr for DirectoryLayout {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ActiveTab {
-    Canvas,
+    Lms,
     Repo,
 }
 
 impl Default for ActiveTab {
     fn default() -> Self {
-        Self::Canvas
+        Self::Lms
     }
 }
 
 impl fmt::Display for ActiveTab {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Canvas => write!(f, "canvas"),
+            Self::Lms => write!(f, "lms"),
             Self::Repo => write!(f, "repo"),
         }
     }
@@ -144,7 +144,7 @@ impl FromStr for ActiveTab {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_lowercase().as_str() {
-            "canvas" => Ok(Self::Canvas),
+            "lms" => Ok(Self::Lms),
             "repo" => Ok(Self::Repo),
             _ => Err(format!("Unknown active tab: {}", s)),
         }
@@ -208,8 +208,8 @@ mod tests {
 
     #[test]
     fn test_active_tab_serialize() {
-        let json = serde_json::to_string(&ActiveTab::Canvas).unwrap();
-        assert_eq!(json, "\"canvas\"");
+        let json = serde_json::to_string(&ActiveTab::Lms).unwrap();
+        assert_eq!(json, "\"lms\"");
 
         let json = serde_json::to_string(&ActiveTab::Repo).unwrap();
         assert_eq!(json, "\"repo\"");
@@ -217,8 +217,8 @@ mod tests {
 
     #[test]
     fn test_active_tab_deserialize() {
-        let tab: ActiveTab = serde_json::from_str("\"canvas\"").unwrap();
-        assert_eq!(tab, ActiveTab::Canvas);
+        let tab: ActiveTab = serde_json::from_str("\"lms\"").unwrap();
+        assert_eq!(tab, ActiveTab::Lms);
 
         let tab: ActiveTab = serde_json::from_str("\"repo\"").unwrap();
         assert_eq!(tab, ActiveTab::Repo);

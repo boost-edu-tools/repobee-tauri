@@ -68,7 +68,7 @@ mod defaults {
     use super::ActiveTab;
 
     pub fn active_tab() -> ActiveTab {
-        ActiveTab::Canvas
+        ActiveTab::Lms
     }
 }
 

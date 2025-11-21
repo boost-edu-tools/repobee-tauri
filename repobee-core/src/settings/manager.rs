@@ -527,7 +527,7 @@ mod tests {
         let settings = GuiSettings::default();
         assert_eq!(settings.common.lms_base_url, "https://canvas.tue.nl");
         assert_eq!(settings.common.git_base_url, "https://gitlab.tue.nl");
-        assert_eq!(settings.active_tab, crate::settings::ActiveTab::Canvas);
+        assert_eq!(settings.active_tab, crate::settings::ActiveTab::Lms);
     }
 
     #[test]
