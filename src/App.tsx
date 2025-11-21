@@ -1,6 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import {
+  Form,
+  Input,
+  Select,
+  Button,
+  Checkbox,
+  Radio,
+  Card,
+  Space,
+  Row,
+  Col,
+  Tooltip,
+  Tabs,
+  Modal,
+  Collapse,
+  ConfigProvider
+} from "antd";
 import { SettingsMenu } from "./components/SettingsMenu";
 import type { GuiSettings } from "./types/settings";
 import "./App.css";
@@ -323,12 +340,6 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
     setLmsForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateLogLevel = (level: keyof FormState["logLevels"]) => {
-    setForm((prev) => ({
-      ...prev,
-      logLevels: { ...prev.logLevels, [level]: !prev.logLevels[level] },
-    }));
-  };
 
   const handleLmsTypeChange = (value: "Canvas" | "Moodle") => {
     setLmsForm((prev) => {
@@ -644,646 +655,608 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
   };
 
   return (
+    <ConfigProvider
+      theme={{
+        token: {
+          fontSize: 12,
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+        },
+      }}
+    >
     <div className="repobee-container">
 
-      {/* Tab Navigation */}
-      <div className="tab-bar">
-        <button
-          className={`tab-button ${activeTab === "lms" ? "active" : ""}`}
-          onClick={() => setActiveTab("lms")}
-        >
-          LMS Import
-        </button>
-        <button
-          className={`tab-button ${activeTab === "repo" ? "active" : ""}`}
-          onClick={() => setActiveTab("repo")}
-        >
-          Repository Setup
-        </button>
-      </div>
-
-      <div className="tabs-container">
-      {/* Tab Content Container */}
-      <div className="tab-content" aria-hidden={activeTab !== "lms"}>
+      {/* Tabs */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as TabType)}
+        style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
+        items={[
+          {
+            key: "lms",
+            label: "LMS Import",
+            children: (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, minHeight: 0, height: "100%", overflow: "hidden" }}>
+          {/* Scrollable cards section */}
+          <div style={{ flex: "0 1 auto", overflow: "auto", display: "flex", flexDirection: "column", gap: 2, maxHeight: "70%" }}>
           {/* LMS Configuration */}
-          <fieldset className="config-section">
-            <legend>LMS configuration</legend>
-
-            <div className="form-row">
-              <label>LMS Type</label>
-              <select
-                value={lmsForm.lmsType}
-                onChange={(e) => handleLmsTypeChange(e.target.value as "Canvas" | "Moodle")}
-              >
-                <option value="Canvas">Canvas</option>
-                <option value="Moodle">Moodle</option>
-              </select>
-              <button className="btn-icon">i</button>
-              <div></div>
-            </div>
-
-            <div className="form-row">
-              <label>Base URL</label>
-              <select
-                value={lmsForm.urlOption}
-                onChange={(e) => updateLmsForm("urlOption", e.target.value as "TUE" | "CUSTOM")}
-                disabled={lmsForm.lmsType !== "Canvas"}
-              >
-                {lmsForm.lmsType === "Canvas" && <option value="TUE">TUE</option>}
-                <option value="CUSTOM">Custom</option>
-              </select>
-              <input
-                type="text"
-                value={lmsForm.urlOption === "TUE" ? lmsForm.baseUrl : lmsForm.customUrl}
-                onChange={(e) =>
-                  updateLmsForm(
-                    lmsForm.urlOption === "TUE" ? "baseUrl" : "customUrl",
-                    e.target.value
-                  )
+          <Card title="LMS configuration" size="small" style={{ marginBottom: 8 }}>
+            <Form size="small" layout="horizontal" labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="Select your Learning Management System platform. Canvas is the primary LMS at TU/e. Select Moodle if you're using a different institution's LMS.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>LMS Type</span>
+                  </Tooltip>
                 }
-                disabled={lmsForm.urlOption === "TUE"}
-              />
-              <button className="btn-icon">i</button>
-            </div>
-
-            <div className="form-row">
-              <label>Access Token</label>
-              <input
-                type="password"
-                value={lmsForm.accessToken}
-                readOnly
-                placeholder="Click Set to add token"
-              />
-              <button className="btn-small" onClick={openLmsTokenDialog}>
-                {lmsForm.accessToken ? "Edit" : "Set"}
-              </button>
-              <button className="btn-icon">i</button>
-            </div>
-
-            <div className="form-row">
-              <label>Course ID</label>
-              <input
-                type="text"
-                value={lmsForm.courseId}
-                onChange={(e) => updateLmsForm("courseId", e.target.value)}
-                placeholder="Enter course ID"
-              />
-              <button className="btn-small" onClick={verifyLmsCourse}>Verify</button>
-              <button className="btn-icon">i</button>
-            </div>
-
-            {lmsForm.courseName && (
-              <div className="form-row">
-                <label>Course Name</label>
-                <input
-                  type="text"
-                  value={lmsForm.courseName}
-                  readOnly
+              >
+                <Select
+                  value={lmsForm.lmsType}
+                  onChange={(value) => handleLmsTypeChange(value as "Canvas" | "Moodle")}
+                  options={[
+                    { value: "Canvas", label: "Canvas" },
+                    { value: "Moodle", label: "Moodle" }
+                  ]}
                 />
-              </div>
-            )}
-          </fieldset>
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="The base URL of your LMS installation. For TU/e Canvas, select 'TUE' to automatically use https://canvas.tue.nl. For other instances, select 'Custom' and enter the full URL.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Base URL</span>
+                  </Tooltip>
+                }
+              >
+                <Space.Compact style={{ width: "100%" }}>
+                  <Select
+                    value={lmsForm.urlOption}
+                    onChange={(value) => updateLmsForm("urlOption", value as "TUE" | "CUSTOM")}
+                    disabled={lmsForm.lmsType !== "Canvas"}
+                    style={{ width: 120 }}
+                  >
+                    {lmsForm.lmsType === "Canvas" && <Select.Option value="TUE">TUE</Select.Option>}
+                    <Select.Option value="CUSTOM">Custom</Select.Option>
+                  </Select>
+                  <Input
+                    value={lmsForm.urlOption === "TUE" ? lmsForm.baseUrl : lmsForm.customUrl}
+                    onChange={(e) =>
+                      updateLmsForm(
+                        lmsForm.urlOption === "TUE" ? "baseUrl" : "customUrl",
+                        e.target.value
+                      )
+                    }
+                    disabled={lmsForm.urlOption === "TUE"}
+                    style={{ flex: 1 }}
+                  />
+                </Space.Compact>
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="Your personal API access token for authenticating with the LMS. This token allows RepoBee to read course data and student rosters. Click 'Set' to open the token generation page and paste your token.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Access Token</span>
+                  </Tooltip>
+                }
+              >
+                <Space.Compact style={{ width: "100%" }}>
+                  <Input.Password
+                    value={lmsForm.accessToken}
+                    readOnly
+                    placeholder="Click Set to add token"
+                    style={{ flex: 1 }}
+                  />
+                  <Button onClick={openLmsTokenDialog}>
+                    {lmsForm.accessToken ? "Edit" : "Set"}
+                  </Button>
+                </Space.Compact>
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="The numeric course identifier from your LMS. You can find this in your course URL (e.g., in 'canvas.tue.nl/courses/12345', the ID is 12345). Click 'Verify' to check if the course exists and load its name.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Course ID</span>
+                  </Tooltip>
+                }
+              >
+                <Space.Compact style={{ width: "100%" }}>
+                  <Input
+                    value={lmsForm.courseId}
+                    onChange={(e) => updateLmsForm("courseId", e.target.value)}
+                    placeholder="Enter course ID"
+                    style={{ flex: 1 }}
+                  />
+                  <Button onClick={verifyLmsCourse}>Verify</Button>
+                </Space.Compact>
+              </Form.Item>
+
+              {lmsForm.courseName && (
+                <Form.Item label="Course Name">
+                  <Input
+                    value={lmsForm.courseName}
+                    readOnly
+                  />
+                </Form.Item>
+              )}
+            </Form>
+          </Card>
 
           {/* Output Configuration */}
-          <fieldset className="config-section">
-            <legend>Output configuration</legend>
+          <Card title="Output configuration" size="small" style={{ marginBottom: 8 }}>
+            <Form size="small" layout="horizontal" labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="The directory where student information files (CSV and/or XLSX) will be saved. If left empty, files are saved in the current working directory. Click 'Browse' to select a folder.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Info File Folder</span>
+                  </Tooltip>
+                }
+              >
+                <Space.Compact style={{ width: "100%" }}>
+                  <Input
+                    value={lmsForm.infoFileFolder}
+                    onChange={(e) => updateLmsForm("infoFileFolder", e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button onClick={browseLmsInfoFolder}>Browse</Button>
+                </Space.Compact>
+              </Form.Item>
 
-            <div className="form-row">
-              <label>Info File Folder</label>
-              <input
-                type="text"
-                value={lmsForm.infoFileFolder}
-                onChange={(e) => updateLmsForm("infoFileFolder", e.target.value)}
-                className="flex-1"
-              />
-              <button className="btn-small" onClick={browseLmsInfoFolder}>
-                Browse
-              </button>
-              <button className="btn-icon">i</button>
-            </div>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="The output file path for RepoBee team definitions in YAML format. This file will contain student teams and members formatted for use in the Repository Setup tab. Default: 'students.yaml' in the selected folder.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>YAML File</span>
+                  </Tooltip>
+                }
+              >
+                <Space.Compact style={{ width: "100%" }}>
+                  <Input
+                    value={lmsForm.yamlFile}
+                    onChange={(e) => updateLmsForm("yamlFile", e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button onClick={browseLmsYamlFile}>Browse</Button>
+                </Space.Compact>
+              </Form.Item>
 
-            <div className="form-row">
-              <label>YAML File</label>
-              <input
-                type="text"
-                value={lmsForm.yamlFile}
-                onChange={(e) => updateLmsForm("yamlFile", e.target.value)}
-                className="flex-1"
-              />
-              <button className="btn-small" onClick={browseLmsYamlFile}>
-                Browse
-              </button>
-              <button className="btn-icon">i</button>
-            </div>
-
-            <div className="options-grid" style={{ marginTop: "8px" }}>
-              <fieldset className="options-subsection">
-                <legend>Output Formats</legend>
-                <div className="checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={lmsForm.csv}
-                      onChange={() => updateLmsForm("csv", !lmsForm.csv)}
-                    />
-                    CSV
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={lmsForm.xlsx}
-                      onChange={() => updateLmsForm("xlsx", !lmsForm.xlsx)}
-                    />
-                    Excel
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={lmsForm.yaml}
-                      onChange={() => updateLmsForm("yaml", !lmsForm.yaml)}
-                    />
-                    YAML (RepoBee)
-                  </label>
-                </div>
-              </fieldset>
-
-              <fieldset className="options-subsection">
-                <legend>Member ID Format</legend>
-                <div className="radio-group">
-                  <label>
-                    <input
-                      type="radio"
-                      name="memberOption"
-                      value="(email, gitid)"
-                      checked={lmsForm.memberOption === "(email, gitid)"}
-                      onChange={(e) => updateLmsForm("memberOption", e.target.value)}
-                    />
-                    (email, git_id)
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="memberOption"
-                      value="email"
-                      checked={lmsForm.memberOption === "email"}
-                      onChange={(e) => updateLmsForm("memberOption", e.target.value)}
-                    />
-                    Email only
-                  </label>
-                  <label>
-                    <input
-                      type="radio"
-                      name="memberOption"
-                      value="git_id"
-                      checked={lmsForm.memberOption === "git_id"}
-                      onChange={(e) => updateLmsForm("memberOption", e.target.value)}
-                    />
-                    Git ID only
-                  </label>
-                </div>
-              </fieldset>
-            </div>
-          </fieldset>
+              <Form.Item label=" " colon={false}>
+                <Row gutter={8}>
+                  <Col span={12}>
+                    <Card title="Output Formats" size="small" style={{ backgroundColor: "#fafafa" }}>
+                      <Checkbox.Group
+                        value={[
+                          lmsForm.csv && "csv",
+                          lmsForm.xlsx && "xlsx",
+                          lmsForm.yaml && "yaml"
+                        ].filter(Boolean) as string[]}
+                        onChange={(values) => {
+                          updateLmsForm("csv", values.includes("csv"));
+                          updateLmsForm("xlsx", values.includes("xlsx"));
+                          updateLmsForm("yaml", values.includes("yaml"));
+                        }}
+                      >
+                        <Space direction="vertical">
+                          <Checkbox value="csv">CSV</Checkbox>
+                          <Checkbox value="xlsx">Excel</Checkbox>
+                          <Checkbox value="yaml">YAML (RepoBee)</Checkbox>
+                        </Space>
+                      </Checkbox.Group>
+                    </Card>
+                  </Col>
+                  <Col span={12}>
+                    <Card title="Member ID Format" size="small" style={{ backgroundColor: "#fafafa" }}>
+                      <Radio.Group
+                        value={lmsForm.memberOption}
+                        onChange={(e) => updateLmsForm("memberOption", e.target.value)}
+                      >
+                        <Space direction="vertical">
+                          <Radio value="(email, gitid)">(email, git_id)</Radio>
+                          <Radio value="email">Email only</Radio>
+                          <Radio value="git_id">Git ID only</Radio>
+                        </Space>
+                      </Radio.Group>
+                    </Card>
+                  </Col>
+                </Row>
+              </Form.Item>
+            </Form>
+          </Card>
 
           {/* Repository Naming */}
-          <fieldset className="config-section">
-            <legend>Repository naming</legend>
-
-            <div className="options-grid">
-              <fieldset className="options-subsection">
-                <legend>Include in Name</legend>
-                <div className="checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={lmsForm.includeGroup}
-                      onChange={() => updateLmsForm("includeGroup", !lmsForm.includeGroup)}
-                    />
-                    Group Name
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={lmsForm.includeMember}
-                      onChange={() => updateLmsForm("includeMember", !lmsForm.includeMember)}
-                    />
-                    Member Names
-                  </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={lmsForm.includeInitials}
-                      onChange={() => updateLmsForm("includeInitials", !lmsForm.includeInitials)}
-                      disabled={!lmsForm.includeMember}
-                    />
-                    Use Initials
-                  </label>
-                </div>
-              </fieldset>
-
-              <fieldset className="options-subsection">
-                <legend>Filters</legend>
-                <div className="checkbox-group">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={lmsForm.fullGroups}
-                      onChange={() => updateLmsForm("fullGroups", !lmsForm.fullGroups)}
-                    />
+          <Card title="Repository naming" size="small" style={{ marginBottom: 8 }}>
+            <Row gutter={8}>
+              <Col span={12}>
+                <Card title="Include in Name" size="small" style={{ backgroundColor: "#fafafa" }}>
+                  <Checkbox.Group
+                    value={[
+                      lmsForm.includeGroup && "includeGroup",
+                      lmsForm.includeMember && "includeMember",
+                      lmsForm.includeInitials && "includeInitials"
+                    ].filter(Boolean) as string[]}
+                    onChange={(values) => {
+                      updateLmsForm("includeGroup", values.includes("includeGroup"));
+                      updateLmsForm("includeMember", values.includes("includeMember"));
+                      updateLmsForm("includeInitials", values.includes("includeInitials"));
+                    }}
+                  >
+                    <Space direction="vertical">
+                      <Checkbox value="includeGroup">Group Name</Checkbox>
+                      <Checkbox value="includeMember">Member Names</Checkbox>
+                      <Checkbox value="includeInitials" disabled={!lmsForm.includeMember}>Use Initials</Checkbox>
+                    </Space>
+                  </Checkbox.Group>
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card title="Filters" size="small" style={{ backgroundColor: "#fafafa" }}>
+                  <Checkbox
+                    checked={lmsForm.fullGroups}
+                    onChange={(e) => updateLmsForm("fullGroups", e.target.checked)}
+                  >
                     Full Groups Only
-                  </label>
-                </div>
-              </fieldset>
-            </div>
-          </fieldset>
-
-          {/* Action Buttons */}
-          <div className="action-buttons">
-            <button className="btn-action" onClick={generateLmsFiles}>
-              Generate Files
-            </button>
-            <button className="btn-icon">i</button>
-            <div className="spacer"></div>
-            <button className="btn-action" onClick={() => setSettingsMenuOpen(true)}>
-              Settings...
-            </button>
-            <button className="btn-action" onClick={saveSettingsToDisk}>
-              Save Settings
-            </button>
-            <button className="btn-action" onClick={clearHistory}>
-              Clear History
-            </button>
+                  </Checkbox>
+                </Card>
+              </Col>
+            </Row>
+          </Card>
           </div>
 
+          {/* Action Buttons */}
+          <Space style={{ width: "100%", padding: "8px 0", borderTop: "1px solid #d9d9d9", borderBottom: "1px solid #d9d9d9", flexShrink: 0 }}>
+            <Tooltip mouseEnterDelay={0.6} title="Fetches the complete student roster and group assignments from your LMS course. Generates output files in the selected formats (YAML, CSV, and/or XLSX) according to your configuration.">
+              <Button type="primary" onClick={generateLmsFiles}>
+                Generate Files
+              </Button>
+            </Tooltip>
+            <div style={{ flex: 1 }} />
+            <Button onClick={() => setSettingsMenuOpen(true)}>Settings...</Button>
+            <Button onClick={saveSettingsToDisk}>Save Settings</Button>
+            <Button onClick={clearHistory}>Clear History</Button>
+          </Space>
+
           {/* Output Window */}
-          <div className="output-section">
-            <textarea
-              className="output-window"
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <Input.TextArea
               value={outputText}
               readOnly
               placeholder="LMS import output will appear here..."
+              style={{
+                flex: 1,
+                fontFamily: "Monaco, Menlo, Consolas, monospace",
+                fontSize: "11px",
+                resize: "none"
+              }}
             />
           </div>
-      </div>
-
-      {/* Repository Setup Tab */}
-      <div className="tab-content" aria-hidden={activeTab !== "repo"}>
+              </div>
+            )
+          },
+          {
+            key: "repo",
+            label: "Repository Setup",
+            children: (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, minHeight: 0, height: "100%", overflow: "hidden" }}>
+          {/* Scrollable cards section */}
+          <div style={{ flex: "0 1 auto", overflow: "auto", display: "flex", flexDirection: "column", gap: 2, maxHeight: "70%" }}>
           {/* Git Server Configuration */}
-          <fieldset className="config-section">
-        <legend>Git server configuration</legend>
+          <Card title="Git server configuration" size="small" style={{ marginBottom: 8 }}>
+            <Form size="small" layout="horizontal" labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="Your personal access token for authenticating with your Git platform (GitLab, GitHub, or Gitea). This token must have permissions to create repositories and manage groups. Store this securely - it provides full API access to your account.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Access Token</span>
+                  </Tooltip>
+                }
+              >
+                <Space.Compact style={{ width: "100%" }}>
+                  <Input.Password
+                    value={form.accessToken}
+                    readOnly
+                    placeholder="Click Set to add token"
+                    style={{ flex: 1 }}
+                  />
+                  <Button onClick={openTokenDialog}>
+                    {form.accessToken ? "Edit" : "Set"}
+                  </Button>
+                </Space.Compact>
+              </Form.Item>
 
-        <div className="form-row">
-          <label>Access Token</label>
-          <input
-            type="password"
-            value={form.accessToken}
-            readOnly
-            placeholder="Click Set to add token"
-          />
-          <button className="btn-small" onClick={openTokenDialog}>
-            {form.accessToken ? "Edit" : "Set"}
-          </button>
-          <button className="btn-icon">i</button>
-        </div>
+              <Form.Item label="Locked">
+                <Button onClick={() => setConfigLocked(!configLocked)} style={{ minWidth: 80 }}>
+                  {configLocked ? "Unlock" : "Lock"}
+                </Button>
+              </Form.Item>
 
-        <div className="form-row">
-          <label>Locked</label>
-          <button
-            className="btn-lock"
-            onClick={() => setConfigLocked(!configLocked)}
-          >
-            {configLocked ? "Unlock" : "Lock"}
-          </button>
-        </div>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="Your username on the Git platform. This is used to verify authentication and may be used to set repository permissions. For GitLab, this is your @username. For GitHub, it's your account name.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>User</span>
+                  </Tooltip>
+                }
+              >
+                <Input
+                  value={form.user}
+                  onChange={(e) => updateForm("user", e.target.value)}
+                  disabled={configLocked}
+                />
+              </Form.Item>
 
-        <div className="form-row">
-          <label>User</label>
-          <input
-            type="text"
-            value={form.user}
-            onChange={(e) => updateForm("user", e.target.value)}
-            disabled={configLocked}
-          />
-          <button className="btn-icon">i</button>
-        </div>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="The base URL of your Git platform instance. For TU/e's GitLab, use 'https://gitlab.tue.nl'. For GitHub, use 'https://github.com'. Include 'https://' and do not add trailing slashes.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Base URL</span>
+                  </Tooltip>
+                }
+              >
+                <Input
+                  value={form.baseUrl}
+                  onChange={(e) => updateForm("baseUrl", e.target.value)}
+                  disabled={configLocked}
+                />
+              </Form.Item>
 
-        <div className="form-row">
-          <label>Base URL</label>
-          <input
-            type="text"
-            value={form.baseUrl}
-            onChange={(e) => updateForm("baseUrl", e.target.value)}
-            disabled={configLocked}
-          />
-          <button className="btn-icon">i</button>
-        </div>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="The GitLab group path or GitHub organization where student repositories will be created. Use the full path including subgroups (e.g., 'courses/2024/programming-101/students'). This group must exist and you must have Owner or Maintainer permissions.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Student Repos Group</span>
+                  </Tooltip>
+                }
+              >
+                <Input
+                  value={form.studentReposGroup}
+                  onChange={(e) => updateForm("studentReposGroup", e.target.value)}
+                  disabled={configLocked}
+                />
+              </Form.Item>
 
-        <div className="form-row">
-          <label>Student Repos Group</label>
-          <input
-            type="text"
-            value={form.studentReposGroup}
-            onChange={(e) => updateForm("studentReposGroup", e.target.value)}
-            disabled={configLocked}
-          />
-          <button className="btn-icon">i</button>
-        </div>
-
-        <div className="form-row">
-          <label>Template Group</label>
-          <input
-            type="text"
-            value={form.templateGroup}
-            onChange={(e) => updateForm("templateGroup", e.target.value)}
-            disabled={configLocked}
-          />
-          <button className="btn-icon">i</button>
-        </div>
-      </fieldset>
+              <Form.Item
+                label={
+                  <Tooltip mouseEnterDelay={0.6} title="The GitLab group path or GitHub organization containing template repositories. Each assignment name you specify should have a corresponding template repository in this group. For example, if this is 'courses/2024/templates' and you create 'lab1', it will copy from 'courses/2024/templates/lab1'.">
+                    <span style={{ borderBottom: "1px dashed #666" }}>Template Group</span>
+                  </Tooltip>
+                }
+              >
+                <Input
+                  value={form.templateGroup}
+                  onChange={(e) => updateForm("templateGroup", e.target.value)}
+                  disabled={configLocked}
+                />
+              </Form.Item>
+            </Form>
+          </Card>
 
       {/* Local Computer Configuration */}
-      <fieldset className="config-section">
-        <legend>Local computer configuration</legend>
+      <Card title="Local computer configuration" size="small" style={{ marginBottom: 8 }}>
+        <Form size="small" layout="horizontal" labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+          <Form.Item
+            label={
+              <Tooltip mouseEnterDelay={0.6} title="Path to the student team definitions file in RepoBee YAML format. This file contains team names and member information. Generate this file from the LMS Import tab or create it manually following the RepoBee format. Click 'Browse' to select an existing file.">
+                <span style={{ borderBottom: "1px dashed #666" }}>YAML File</span>
+              </Tooltip>
+            }
+          >
+            <Space.Compact style={{ width: "100%" }}>
+              <Input
+                value={form.yamlFile}
+                onChange={(e) => updateForm("yamlFile", e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <Button onClick={browseYamlFile}>Browse</Button>
+            </Space.Compact>
+          </Form.Item>
 
-        <div className="form-row">
-          <label>YAML File</label>
-          <input
-            type="text"
-            value={form.yamlFile}
-            onChange={(e) => updateForm("yamlFile", e.target.value)}
-            className="flex-1"
-          />
-          <button className="btn-small" onClick={browseYamlFile}>
-            Browse
-          </button>
-          <button className="btn-icon">i</button>
-        </div>
-
-        <div className="form-row">
-          <label>Target Folder Clone</label>
-          <input
-            type="text"
-            value={form.targetFolder}
-            onChange={(e) => updateForm("targetFolder", e.target.value)}
-            className="flex-1"
-          />
-          <button className="btn-small" onClick={browseTargetFolder}>
-            Browse
-          </button>
-          <button className="btn-icon">i</button>
-        </div>
-      </fieldset>
+          <Form.Item
+            label={
+              <Tooltip mouseEnterDelay={0.6} title="The local directory where all student repositories will be cloned. This must be an existing directory with sufficient storage space. Repositories will be organized according to your chosen directory layout (flat, by-team, or by-task).">
+                <span style={{ borderBottom: "1px dashed #666" }}>Target Folder Clone</span>
+              </Tooltip>
+            }
+          >
+            <Space.Compact style={{ width: "100%" }}>
+              <Input
+                value={form.targetFolder}
+                onChange={(e) => updateForm("targetFolder", e.target.value)}
+                style={{ flex: 1 }}
+              />
+              <Button onClick={browseTargetFolder}>Browse</Button>
+            </Space.Compact>
+          </Form.Item>
+        </Form>
+      </Card>
 
       {/* General Configuration */}
-      <fieldset className="config-section">
-        <legend>General configuration</legend>
-
-        <div className="form-row">
-          <label>Assignments</label>
-          <input
-            type="text"
-            value={form.assignments}
-            onChange={(e) => updateForm("assignments", e.target.value)}
-            className="flex-1"
-          />
-          <button className="btn-icon">i</button>
-        </div>
-      </fieldset>
+      <Card title="General configuration" size="small" style={{ marginBottom: 8 }}>
+        <Form size="small" layout="horizontal" labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+          <Form.Item
+            label={
+              <Tooltip mouseEnterDelay={0.6} title="Comma-separated list of assignment or project names (e.g., 'lab1,lab2,final-project'). For each assignment, RepoBee will create one repository per student team. The assignment names should match template repository names in your Template Group.">
+                <span style={{ borderBottom: "1px dashed #666" }}>Assignments</span>
+              </Tooltip>
+            }
+          >
+            <Input
+              value={form.assignments}
+              onChange={(e) => updateForm("assignments", e.target.value)}
+            />
+          </Form.Item>
+        </Form>
+      </Card>
 
       {/* Options */}
-      <fieldset className="config-section">
-        <legend>Options</legend>
+      <Card title="Options" size="small" style={{ marginBottom: 8 }}>
+        <Form size="small" layout="horizontal" labelCol={{ span: 6 }} wrapperCol={{ span: 18 }}>
+          <Form.Item label="Locked">
+            <Button onClick={() => setOptionsLocked(!optionsLocked)} style={{ minWidth: 80 }}>
+              {optionsLocked ? "Unlock" : "Lock"}
+            </Button>
+          </Form.Item>
 
-        <div className="form-row">
-          <label>Locked</label>
-          <button
-            className="btn-lock"
-            onClick={() => setOptionsLocked(!optionsLocked)}
-          >
-            {optionsLocked ? "Unlock" : "Lock"}
-          </button>
-        </div>
-
-        <div className="options-grid">
-          <fieldset className="options-subsection">
-            <legend>Clone</legend>
-            <div className="radio-group">
-              <label>
-                <input
-                  type="radio"
-                  name="directoryLayout"
-                  value="by-team"
-                  checked={form.directoryLayout === "by-team"}
-                  onChange={(e) =>
-                    updateForm("directoryLayout", e.target.value)
-                  }
-                  disabled={optionsLocked}
-                />
-                By team
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="directoryLayout"
-                  value="flat"
-                  checked={form.directoryLayout === "flat"}
-                  onChange={(e) =>
-                    updateForm("directoryLayout", e.target.value)
-                  }
-                  disabled={optionsLocked}
-                />
-                Flat
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="directoryLayout"
-                  value="by-task"
-                  checked={form.directoryLayout === "by-task"}
-                  onChange={(e) =>
-                    updateForm("directoryLayout", e.target.value)
-                  }
-                  disabled={optionsLocked}
-                />
-                By task
-              </label>
-            </div>
-          </fieldset>
-
-          <fieldset className="options-subsection">
-            <legend>Output window</legend>
-            <div className="checkbox-group">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.logLevels.info}
-                  onChange={() => updateLogLevel("info")}
-                  disabled={optionsLocked}
-                />
-                Info
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.logLevels.debug}
-                  onChange={() => updateLogLevel("debug")}
-                  disabled={optionsLocked}
-                />
-                Debug
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.logLevels.warning}
-                  onChange={() => updateLogLevel("warning")}
-                  disabled={optionsLocked}
-                />
-                Warning
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={form.logLevels.error}
-                  onChange={() => updateLogLevel("error")}
-                  disabled={optionsLocked}
-                />
-                Error
-              </label>
-            </div>
-          </fieldset>
-        </div>
-      </fieldset>
-
-      {/* Action Buttons */}
-      <div className="action-buttons">
-        <button className="btn-action" onClick={verifyConfig}>
-          Verify Config
-        </button>
-        <button className="btn-icon">i</button>
-        <button className="btn-action" onClick={createStudentRepos}>
-          Create Student Repos
-        </button>
-        <button className="btn-icon">i</button>
-        <button className="btn-action" onClick={cloneRepos}>
-          Clone
-        </button>
-        <button className="btn-icon">i</button>
-        <div className="spacer"></div>
-        <button className="btn-action" onClick={() => setSettingsMenuOpen(true)}>
-          Settings...
-        </button>
-        <button className="btn-action" onClick={saveSettingsToDisk}>
-          Save Settings
-        </button>
-        <button className="btn-action" onClick={clearHistory}>
-          Clear History
-        </button>
-        <button className="btn-action btn-exit" onClick={() => window.close()}>
-          Exit
-        </button>
+          <Form.Item label=" " colon={false}>
+            <Row gutter={8}>
+              <Col span={12}>
+                <Card title="Clone" size="small" style={{ backgroundColor: "#fafafa" }}>
+                  <Radio.Group
+                    value={form.directoryLayout}
+                    onChange={(e) => updateForm("directoryLayout", e.target.value)}
+                    disabled={optionsLocked}
+                  >
+                    <Space direction="vertical">
+                      <Radio value="by-team">By team</Radio>
+                      <Radio value="flat">Flat</Radio>
+                      <Radio value="by-task">By task</Radio>
+                    </Space>
+                  </Radio.Group>
+                </Card>
+              </Col>
+              <Col span={12}>
+                <Card title="Output window" size="small" style={{ backgroundColor: "#fafafa" }}>
+                  <Checkbox.Group
+                    value={[
+                      form.logLevels.info && "info",
+                      form.logLevels.debug && "debug",
+                      form.logLevels.warning && "warning",
+                      form.logLevels.error && "error"
+                    ].filter(Boolean) as string[]}
+                    onChange={(values) => {
+                      updateForm("logLevels", {
+                        info: values.includes("info"),
+                        debug: values.includes("debug"),
+                        warning: values.includes("warning"),
+                        error: values.includes("error")
+                      });
+                    }}
+                    disabled={optionsLocked}
+                  >
+                    <Space direction="vertical">
+                      <Checkbox value="info">Info</Checkbox>
+                      <Checkbox value="debug">Debug</Checkbox>
+                      <Checkbox value="warning">Warning</Checkbox>
+                      <Checkbox value="error">Error</Checkbox>
+                    </Space>
+                  </Checkbox.Group>
+                </Card>
+              </Col>
+            </Row>
+          </Form.Item>
+        </Form>
+      </Card>
       </div>
 
+      {/* Action Buttons */}
+      <Space style={{ width: "100%", padding: "8px 0", borderTop: "1px solid #d9d9d9", borderBottom: "1px solid #d9d9d9", flexShrink: 0 }} wrap>
+        <Tooltip mouseEnterDelay={0.6} title="Validates your Git platform credentials and verifies that the specified groups/organizations exist and are accessible. Run this before creating repositories to catch configuration errors early.">
+          <Button type="primary" onClick={verifyConfig}>
+            Verify Config
+          </Button>
+        </Tooltip>
+        <Tooltip mouseEnterDelay={0.6} title="Creates Git repositories for each combination of student team and assignment. Each repository is initialized from the corresponding template repository.">
+          <Button type="primary" onClick={createStudentRepos}>
+            Create Student Repos
+          </Button>
+        </Tooltip>
+        <Tooltip mouseEnterDelay={0.6} title="Clones all student repositories to your local machine using the target folder and directory layout specified. Progress is shown in the output window.">
+          <Button type="primary" onClick={cloneRepos}>
+            Clone
+          </Button>
+        </Tooltip>
+        <div style={{ flex: 1 }} />
+        <Button onClick={() => setSettingsMenuOpen(true)}>Settings...</Button>
+        <Button onClick={saveSettingsToDisk}>Save Settings</Button>
+        <Button onClick={clearHistory}>Clear History</Button>
+        <Button danger onClick={() => window.close()}>Exit</Button>
+      </Space>
+
       {/* Output Window */}
-      <div className="output-section">
-        <textarea
-          className="output-window"
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <Input.TextArea
           value={outputText}
           readOnly
           placeholder="Output will appear here..."
+          style={{
+            flex: 1,
+            fontFamily: "Monaco, Menlo, Consolas, monospace",
+            fontSize: "11px",
+            resize: "none"
+          }}
         />
       </div>
-      </div>
-      </div>
+              </div>
+            )
+          }
+        ]}
+      />
 
       {/* Git Token Edit Dialog */}
-      {tokenDialogOpen && (
-        <div className="dialog-overlay" onClick={closeTokenDialog}>
-          <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h2>{form.accessToken ? "Edit" : "Set"} Git Access Token</h2>
-            <input
-              type="text"
-              value={tokenDialogValue}
-              onChange={(e) => setTokenDialogValue(e.target.value)}
-              placeholder="Enter access token"
-              autoFocus
-              className="dialog-input"
-            />
-            <div className="dialog-buttons">
-              <button className="btn-action" onClick={saveToken}>
-                OK
-              </button>
-              <button className="btn-action" onClick={closeTokenDialog}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        title={`${form.accessToken ? "Edit" : "Set"} Git Access Token`}
+        open={tokenDialogOpen}
+        onOk={saveToken}
+        onCancel={closeTokenDialog}
+        okText="OK"
+        cancelText="Cancel"
+      >
+        <Input
+          value={tokenDialogValue}
+          onChange={(e) => setTokenDialogValue(e.target.value)}
+          placeholder="Enter access token"
+          autoFocus
+        />
+      </Modal>
 
       {/* LMS Token Edit Dialog */}
-      {lmsTokenDialogOpen && (
-        <div className="dialog-overlay" onClick={closeLmsTokenDialog}>
-          <div className="dialog" onClick={(e) => e.stopPropagation()}>
-            <h2>{lmsForm.accessToken ? "Edit" : "Set"} {lmsForm.lmsType} Access Token</h2>
-
-            {/* Instructions section */}
-            {tokenInstructions && (
-              <div style={{ marginBottom: "12px" }}>
-                <button
-                  onClick={() => setShowTokenInstructions(!showTokenInstructions)}
-                  style={{
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    marginBottom: "8px",
-                  }}
-                >
-                  {showTokenInstructions ? "▼ Hide Instructions" : "▶ How to Get Token"}
-                </button>
-                {showTokenInstructions && (
-                  <div
-                    style={{
-                      backgroundColor: "#f5f5f5",
-                      padding: "12px",
-                      borderRadius: "4px",
-                      fontSize: "12px",
-                      whiteSpace: "pre-wrap",
-                      maxHeight: "200px",
-                      overflowY: "auto",
-                      fontFamily: "monospace",
-                      lineHeight: "1.5",
-                    }}
-                  >
-                    <strong>Note: Click the "Get Token" button below to open the {lmsForm.lmsType} access token creation page in your browser</strong>
-                    {"\n\n"}
-                    {tokenInstructions}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <input
-              type="text"
-              value={lmsTokenDialogValue}
-              onChange={(e) => setLmsTokenDialogValue(e.target.value)}
-              placeholder="Paste copied token here"
-              autoFocus={!showTokenInstructions}
-              className="dialog-input"
+      <Modal
+        title={`${lmsForm.accessToken ? "Edit" : "Set"} ${lmsForm.lmsType} Access Token`}
+        open={lmsTokenDialogOpen}
+        onCancel={closeLmsTokenDialog}
+        footer={[
+          <Button key="get" onClick={openLmsTokenUrl}>
+            Get Token
+          </Button>,
+          <Button key="ok" type="primary" onClick={saveLmsToken}>
+            OK
+          </Button>,
+          <Button key="cancel" onClick={closeLmsTokenDialog}>
+            Cancel
+          </Button>
+        ]}
+        width={500}
+      >
+        <Space direction="vertical" style={{ width: "100%" }}>
+          {tokenInstructions && (
+            <Collapse
+              activeKey={showTokenInstructions ? ["instructions"] : []}
+              onChange={(keys) => setShowTokenInstructions(keys.includes("instructions"))}
+              items={[
+                {
+                  key: "instructions",
+                  label: "How to Get Token",
+                  children: (
+                    <div
+                      style={{
+                        backgroundColor: "#f5f5f5",
+                        padding: "12px",
+                        borderRadius: "4px",
+                        fontSize: "12px",
+                        whiteSpace: "pre-wrap",
+                        maxHeight: "200px",
+                        overflowY: "auto",
+                        fontFamily: "monospace",
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      <strong>Note: Click the "Get Token" button below to open the {lmsForm.lmsType} access token creation page in your browser</strong>
+                      {"\n\n"}
+                      {tokenInstructions}
+                    </div>
+                  )
+                }
+              ]}
             />
-            <div className="dialog-buttons">
-              <button className="btn-action" onClick={openLmsTokenUrl}>
-                Get Token
-              </button>
-              <button className="btn-action" onClick={saveLmsToken}>
-                OK
-              </button>
-              <button className="btn-action" onClick={closeLmsTokenDialog}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          )}
+          <Input
+            value={lmsTokenDialogValue}
+            onChange={(e) => setLmsTokenDialogValue(e.target.value)}
+            placeholder="Paste copied token here"
+            autoFocus={!showTokenInstructions}
+          />
+        </Space>
+      </Modal>
 
       {/* Settings Menu */}
       <SettingsMenu
@@ -1334,6 +1307,7 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         onMessage={appendOutput}
       />
     </div>
+    </ConfigProvider>
   );
 }
 

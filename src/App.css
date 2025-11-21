@@ -1,12 +1,6 @@
 :root {
   --color-bg: #f0f0f0;
   --color-text: #333;
-  --color-border: #999;
-  --color-input-bg: white;
-  --color-button: #003d7a;
-  --color-button-hover: #00549d;
-  --color-fieldset-bg: #e8e8e8;
-  --color-disabled: #c0c0c0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
   font-size: 13px;
@@ -22,6 +16,8 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
 }
 
 .repobee-container {
@@ -30,339 +26,218 @@ body {
   height: 100vh;
   padding: 6px;
   gap: 4px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
 }
 
-/* Tab Navigation */
-.tab-bar {
-  display: flex;
-  gap: 0;
-  border-bottom: 1px solid var(--color-border);
-  margin-bottom: 6px;
+/* Ant Design overrides for information density */
+.ant-card {
+  font-family: inherit;
+  margin-bottom: 4px !important;
 }
 
-.tab-button {
-  flex: 1;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  background-color: var(--color-fieldset-bg);
-  border: 1px solid var(--color-border);
-  border-bottom: none;
-  border-radius: 4px 4px 0 0;
-  cursor: pointer;
-  color: var(--color-text);
-  transition: background-color 0.2s;
-}
-
-.tab-button:hover {
-  background-color: #d0d0d0;
-}
-
-.tab-button.active {
-  background-color: var(--color-bg);
-  font-weight: 600;
-  border-bottom: 1px solid var(--color-bg);
-  margin-bottom: -1px;
-}
-
-.tabs-container {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-
-.tab-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  gap: 4px;
-  min-height: 0;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.ant-card-head {
+  min-height: 28px;
   padding: 0 6px;
+  font-family: inherit;
 }
 
-.tab-content[aria-hidden="true"] {
-  visibility: hidden;
-  pointer-events: none;
-}
-
-/* Fieldsets and sections */
-fieldset {
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  padding: 6px;
-  margin: 0;
-}
-
-legend {
+.ant-card-head-title {
+  padding: 2px 0;
+  font-size: 12px;
   font-weight: 600;
-  padding: 0 4px;
-  font-size: 12px;
+  font-family: inherit;
 }
 
-.config-section {
-  background-color: var(--color-fieldset-bg);
+.ant-card-body {
   padding: 6px;
-}
-
-/* Form rows */
-.form-row {
-  display: grid;
-  grid-template-columns: 120px 1fr auto auto;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-}
-
-.form-row:last-child {
-  margin-bottom: 0;
-}
-
-.form-row label {
-  font-size: 12px;
-  text-align: right;
-  padding-right: 8px;
-}
-
-.form-row input[type="text"],
-.form-row input[type="password"],
-.form-row select {
-  padding: 4px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  background-color: var(--color-input-bg);
-  font-size: 12px;
   font-family: inherit;
 }
 
-.form-row select {
-  cursor: pointer;
-  max-width: 120px;
+.ant-tabs {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  min-height: 0 !important;
 }
 
-.form-row input[type="text"]:disabled,
-.form-row input[type="password"]:disabled,
-.form-row input[type="password"][readonly] {
-  background-color: var(--color-disabled);
-  color: #666;
+.ant-tabs-content-holder {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
 }
 
-.form-row input.flex-1 {
-  width: 100%;
+.ant-tabs-content {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
-/* Buttons */
-button {
+.ant-tabs-tabpane {
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.ant-tabs-tabpane-hidden {
+  display: none !important;
+}
+
+.ant-tabs-tab {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-family: inherit !important;
+}
+
+/* Compact form spacing */
+.ant-form-item {
+  margin-bottom: 4px !important;
   font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  background-color: var(--color-button);
-  color: white;
-  padding: 4px 12px;
-  min-height: 24px;
 }
 
-button:hover:not(:disabled) {
-  background-color: var(--color-button-hover);
-}
-
-button:disabled {
-  background-color: var(--color-disabled);
-  cursor: not-allowed;
-}
-
-.btn-small {
-  padding: 4px 16px;
-  min-width: 80px;
-}
-
-.btn-icon {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  font-weight: normal;
-  font-style: italic;
-  font-size: 12px;
-  border-radius: 50%;
-  background-color: #4a90e2;
-  border: 1px solid #3a7bc8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-icon:hover:not(:disabled) {
-  background-color: #5ca0f2;
-}
-
-.btn-lock {
-  min-width: 80px;
-}
-
-.btn-action {
-  padding: 6px 16px;
-}
-
-.btn-exit {
-  background-color: #666;
-}
-
-.btn-exit:hover {
-  background-color: #888;
-}
-
-/* Options section */
-.options-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.options-subsection {
-  background-color: var(--color-input-bg);
-  padding: 4px 6px;
-}
-
-.radio-group,
-.checkbox-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px 0;
-}
-
-.radio-group label,
-.checkbox-group label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.radio-group input[type="radio"],
-.checkbox-group input[type="checkbox"] {
-  cursor: pointer;
-}
-
-.radio-group input[type="radio"]:disabled,
-.checkbox-group input[type="checkbox"]:disabled {
-  cursor: not-allowed;
-}
-
-/* Action buttons */
-.action-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 0;
-  border-top: 1px solid var(--color-border);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.spacer {
-  flex: 1;
-}
-
-/* Output section */
-.output-section {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.output-window {
-  flex: 1;
-  width: 100%;
-  padding: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  background-color: var(--color-input-bg);
-  font-family: "Monaco", "Menlo", "Consolas", monospace;
-  font-size: 11px;
-  resize: none;
-  overflow-y: auto;
-}
-
-.output-window::placeholder {
-  color: #999;
-  font-style: italic;
-}
-
-/* Scrollbar styling */
-.output-window::-webkit-scrollbar {
-  width: 12px;
-}
-
-.output-window::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 2px;
-}
-
-.output-window::-webkit-scrollbar-thumb {
-  background: #888;
-  border-radius: 2px;
-}
-
-.output-window::-webkit-scrollbar-thumb:hover {
-  background: #555;
-}
-
-/* Dialog overlay and modal */
-.dialog-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.dialog {
-  background-color: white;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  padding: 20px;
-  min-width: 400px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.dialog h2 {
-  margin: 0 0 16px 0;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.dialog-input {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 2px;
-  font-size: 12px;
+.ant-form-item-label {
+  padding-bottom: 0px !important;
   font-family: inherit;
-  margin-bottom: 16px;
 }
 
-.dialog-buttons {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+.ant-form-item-label > label {
+  font-size: 12px !important;
+  height: auto !important;
+  line-height: 1.2 !important;
+  font-family: inherit;
 }
 
-.dialog-buttons .btn-action {
-  min-width: 80px;
+.ant-form-item-control-input {
+  min-height: auto !important;
+}
+
+/* Compact inputs */
+.ant-input,
+.ant-input-password,
+.ant-select-selector,
+.ant-btn {
+  font-size: 12px !important;
+  font-family: inherit !important;
+  line-height: 1.2 !important;
+}
+
+.ant-input,
+.ant-input-password input {
+  padding: 2px 8px !important;
+  height: 24px !important;
+}
+
+.ant-select-selector {
+  padding: 0 8px !important;
+  height: 24px !important;
+}
+
+.ant-select-selection-item,
+.ant-select-item {
+  font-size: 12px !important;
+  font-family: inherit !important;
+  line-height: 22px !important;
+}
+
+.ant-select-single .ant-select-selector {
+  height: 24px !important;
+}
+
+.ant-select-single .ant-select-selector .ant-select-selection-item {
+  line-height: 22px !important;
+}
+
+/* Compact buttons */
+.ant-btn {
+  height: 24px !important;
+  padding: 0 12px !important;
+  font-family: inherit !important;
+}
+
+.ant-btn-sm {
+  height: 22px !important;
+  padding: 0 8px !important;
+  font-size: 12px !important;
+}
+
+/* Compact checkboxes and radios */
+.ant-checkbox-wrapper,
+.ant-radio-wrapper {
+  font-size: 12px !important;
+  font-family: inherit !important;
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.ant-checkbox-wrapper + .ant-checkbox-wrapper,
+.ant-radio-wrapper + .ant-radio-wrapper {
+  margin-left: 0 !important;
+}
+
+.ant-space-vertical {
+  gap: 2px !important;
+}
+
+.ant-space-vertical .ant-space-item {
+  margin-bottom: 0 !important;
+}
+
+/* Compact space */
+.ant-space-item {
+  font-family: inherit;
+}
+
+/* Modal */
+.ant-modal-content {
+  font-family: inherit;
+}
+
+.ant-modal-title {
+  font-size: 14px !important;
+  font-family: inherit;
+}
+
+/* Collapse */
+.ant-collapse-header {
+  font-size: 12px !important;
+  padding: 8px 12px !important;
+  font-family: inherit;
+}
+
+.ant-collapse-content-box {
+  padding: 8px !important;
+  font-family: inherit;
+}
+
+/* Compact nested cards */
+.ant-card .ant-card {
+  margin-bottom: 0 !important;
+}
+
+.ant-card .ant-card-body {
+  padding: 4px 6px !important;
+}
+
+/* Compact row gutters */
+.ant-row {
+  row-gap: 4px !important;
+}
+
+/* Compact tooltips */
+.ant-tooltip {
+  font-size: 12px !important;
+  font-family: inherit;
+}
+
+.ant-tooltip-inner {
+  font-size: 11px !important;
+  padding: 6px 8px !important;
+  font-family: inherit;
+  line-height: 1.4 !important;
+}
+
+.ant-tooltip-arrow-content {
+  --antd-arrow-background-color: #333;
 }
