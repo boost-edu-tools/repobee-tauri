@@ -2,7 +2,7 @@ use repobee_core::{
     create_lms_client_with_params, generate_repobee_yaml_with_progress,
     get_student_info_with_progress, get_token_generation_instructions, open_token_generation_url,
     write_csv_file, write_yaml_file, FetchProgress, GuiSettings, LmsClientTrait, LmsCommonType,
-    MemberOption, Platform, PlatformAPI, SettingsManager, StudentTeam, YamlConfig,
+    LmsMemberOption, Platform, PlatformAPI, SettingsManager, StudentTeam, YamlConfig,
 };
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
@@ -142,8 +142,8 @@ struct CommandResult {
 /// Load settings from disk
 #[tauri::command]
 async fn load_settings() -> Result<GuiSettings, String> {
-    let manager =
-        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
     let settings = manager
         .load()
@@ -155,8 +155,8 @@ async fn load_settings() -> Result<GuiSettings, String> {
 /// Save settings to disk
 #[tauri::command]
 async fn save_settings(settings: GuiSettings) -> Result<(), String> {
-    let manager =
-        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
     manager
         .save(&settings)
@@ -168,8 +168,8 @@ async fn save_settings(settings: GuiSettings) -> Result<(), String> {
 /// Reset settings to defaults
 #[tauri::command]
 async fn reset_settings() -> Result<GuiSettings, String> {
-    let manager =
-        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
     let settings = manager
         .reset()
@@ -181,8 +181,8 @@ async fn reset_settings() -> Result<GuiSettings, String> {
 /// Get settings file path
 #[tauri::command]
 async fn get_settings_path() -> Result<String, String> {
-    let manager =
-        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
     Ok(manager.settings_file_path().to_string_lossy().to_string())
 }
@@ -190,10 +190,65 @@ async fn get_settings_path() -> Result<String, String> {
 /// Check if settings file exists
 #[tauri::command]
 async fn settings_exist() -> Result<bool, String> {
-    let manager =
-        SettingsManager::new().map_err(|e| format!("Failed to create settings manager: {}", e))?;
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
 
     Ok(manager.settings_exist())
+}
+
+/// Import settings from a specific file
+#[tauri::command]
+async fn import_settings(path: String) -> Result<GuiSettings, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    let settings = manager
+        .load_from(std::path::Path::new(&path))
+        .map_err(|e| format!("Failed to import settings: {}", e))?;
+
+    Ok(settings)
+}
+
+/// Export settings to a specific file
+#[tauri::command]
+async fn export_settings(settings: GuiSettings, path: String) -> Result<(), String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .save_to(&settings, std::path::Path::new(&path))
+        .map_err(|e| format!("Failed to export settings: {}", e))?;
+
+    Ok(())
+}
+
+/// Get the JSON schema for GuiSettings
+#[tauri::command]
+async fn get_settings_schema() -> Result<serde_json::Value, String> {
+    SettingsManager::get_schema()
+        .map_err(|e| format!("Failed to get schema: {}", e))
+}
+
+/// Reset settings file location to default
+#[tauri::command]
+async fn reset_settings_location() -> Result<String, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .reset_location()
+        .map_err(|e| format!("Failed to reset location: {}", e))?;
+
+    Ok(manager.settings_file_path().to_string_lossy().to_string())
+}
+
+/// Load settings or return defaults (never fails)
+#[tauri::command]
+async fn load_settings_or_default() -> Result<GuiSettings, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    Ok(manager.load_or_default())
 }
 
 /// Get token generation instructions for an LMS type
@@ -327,7 +382,7 @@ async fn generate_lms_files(
     // Generate YAML file if requested
     if params.yaml {
         let config = YamlConfig {
-            member_option: MemberOption::from_str(&params.member_option),
+            member_option: LmsMemberOption::from_str(&params.member_option),
             include_group: params.include_group,
             include_member: params.include_member,
             include_initials: params.include_initials,
@@ -609,6 +664,11 @@ pub fn run() {
             reset_settings,
             get_settings_path,
             settings_exist,
+            import_settings,
+            export_settings,
+            get_settings_schema,
+            reset_settings_location,
+            load_settings_or_default,
             get_token_instructions,
             open_token_url,
             verify_lms_course,

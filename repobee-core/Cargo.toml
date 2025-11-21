@@ -28,12 +28,19 @@ reqwest.workspace = true
 # Date/time for timestamps
 chrono.workspace = true
 
+# Logging
+log = "0.4"
+
 # Platform-specific directories
 dirs = "5"
+directories = "5"
 
 # JSON Schema generation and validation
 schemars = "0.8"
 jsonschema = "0.18"
+
+# Pattern matching for file paths
+glob = "0.3"
 
 # LMS client (unified)
 lms-client = { path = "../../lms-api/lms-client" }

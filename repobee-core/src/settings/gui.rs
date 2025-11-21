@@ -1,4 +1,6 @@
 use super::common::CommonSettings;
+use super::enums::ActiveTab;
+use super::normalization::Normalize;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +13,7 @@ pub struct GuiSettings {
 
     // ===== GUI-Only Settings =====
     #[serde(default = "defaults::active_tab")]
-    pub active_tab: String, // "canvas" or "repo"
+    pub active_tab: ActiveTab, // Canvas or Repo
 
     #[serde(default)]
     pub config_locked: bool,
@@ -63,7 +65,19 @@ impl GuiSettings {
 }
 
 mod defaults {
-    pub fn active_tab() -> String {
-        "canvas".to_string()
+    use super::ActiveTab;
+
+    pub fn active_tab() -> ActiveTab {
+        ActiveTab::Canvas
+    }
+}
+
+impl Normalize for GuiSettings {
+    fn normalize(&mut self) {
+        // Normalize the common settings
+        self.common.normalize();
+
+        // GUI-specific normalization (if needed)
+        // No string normalization needed for GUI-only fields currently
     }
 }

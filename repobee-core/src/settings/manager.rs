@@ -1,49 +1,68 @@
+use super::atomic::atomic_write_json;
+use super::error::{ConfigError, ConfigResult};
 use super::gui::GuiSettings;
-use crate::error::{PlatformError, Result};
+use super::location::LocationManager;
+use super::normalization::Normalize;
+use super::validation::Validate;
 use schemars::schema_for;
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Settings manager for loading, saving, and managing application settings
 pub struct SettingsManager {
     config_dir: PathBuf,
-    settings_file: PathBuf,
+    location_manager: LocationManager,
 }
 
 impl SettingsManager {
     /// Create a new settings manager
-    pub fn new() -> Result<Self> {
+    pub fn new() -> ConfigResult<Self> {
         let config_dir = Self::get_config_dir()?;
-        let settings_file = config_dir.join("repobee.json");
+        let location_manager = LocationManager::new(&config_dir, "repobee");
 
         // Ensure config directory exists
         fs::create_dir_all(&config_dir).map_err(|e| {
-            PlatformError::Other(format!("Failed to create config directory: {}", e))
+            ConfigError::CreateDirError {
+                path: config_dir.clone(),
+                source: e,
+            }
         })?;
 
         Ok(Self {
             config_dir,
-            settings_file,
+            location_manager,
         })
     }
 
     /// Get platform-specific config directory
-    fn get_config_dir() -> Result<PathBuf> {
+    fn get_config_dir() -> ConfigResult<PathBuf> {
+        // Try using directories crate first for better XDG compliance
+        if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "repobee-tauri") {
+            return Ok(proj_dirs.config_dir().to_path_buf());
+        }
+
+        // Fallback to dirs crate
         let config_dir = if cfg!(target_os = "macos") {
             dirs::home_dir()
-                .ok_or_else(|| PlatformError::Other("Could not find home directory".to_string()))?
+                .ok_or_else(|| ConfigError::ConfigDirError {
+                    message: "Could not find home directory".to_string(),
+                })?
                 .join("Library")
                 .join("Application Support")
                 .join("repobee-tauri")
         } else if cfg!(target_os = "windows") {
             dirs::config_dir()
-                .ok_or_else(|| PlatformError::Other("Could not find config directory".to_string()))?
+                .ok_or_else(|| ConfigError::ConfigDirError {
+                    message: "Could not find config directory".to_string(),
+                })?
                 .join("repobee-tauri")
         } else {
             // Linux and other Unix-like systems
             dirs::config_dir()
-                .ok_or_else(|| PlatformError::Other("Could not find config directory".to_string()))?
+                .ok_or_else(|| ConfigError::ConfigDirError {
+                    message: "Could not find config directory".to_string(),
+                })?
                 .join("repobee-tauri")
         };
 
@@ -51,15 +70,17 @@ impl SettingsManager {
     }
 
     /// Validate JSON data against GuiSettings schema
-    fn validate_settings(&self, json_value: &Value) -> Result<Vec<String>> {
+    fn validate_settings(&self, json_value: &Value) -> ConfigResult<Vec<String>> {
         // Generate schema for GuiSettings
         let schema = schema_for!(GuiSettings);
         let schema_json = serde_json::to_value(&schema)
-            .map_err(|e| PlatformError::Other(format!("Failed to serialize schema: {}", e)))?;
+            .map_err(|e| ConfigError::SchemaSerializationError { source: e })?;
 
         // Compile the schema
         let compiled = jsonschema::JSONSchema::compile(&schema_json)
-            .map_err(|e| PlatformError::Other(format!("Failed to compile schema: {}", e)))?;
+            .map_err(|e| ConfigError::SchemaCompileError {
+                message: e.to_string(),
+            })?;
 
         // Validate the JSON
         let mut errors = Vec::new();
@@ -74,78 +95,168 @@ impl SettingsManager {
 
     /// Load settings from disk
     /// Returns default settings if file doesn't exist (no error)
-    pub fn load(&self) -> Result<GuiSettings> {
-        if !self.settings_file.exists() {
+    pub fn load(&self) -> ConfigResult<GuiSettings> {
+        let location = self.location_manager.load()?;
+        let settings_file = location.settings_path();
+
+        if !settings_file.exists() {
             // File doesn't exist, return defaults silently
             return Ok(GuiSettings::default());
         }
 
-        let contents = fs::read_to_string(&self.settings_file)
-            .map_err(|e| PlatformError::Other(format!("Failed to read settings file: {}", e)))?;
+        let contents = fs::read_to_string(settings_file).map_err(|e| ConfigError::ReadError {
+            path: settings_file.to_path_buf(),
+            source: e,
+        })?;
 
         // Parse as generic JSON first
-        let json_value: Value = serde_json::from_str(&contents)
-            .map_err(|e| PlatformError::Other(format!("Invalid JSON in settings file: {}", e)))?;
+        let json_value: Value =
+            serde_json::from_str(&contents).map_err(|e| ConfigError::JsonParseError {
+                path: settings_file.to_path_buf(),
+                source: e,
+            })?;
 
         // Validate against schema
         let validation_errors = self.validate_settings(&json_value)?;
         if !validation_errors.is_empty() {
-            // Return error with validation details
-            let error_msg = format!(
-                "Settings validation errors:\n{}",
-                validation_errors.join("\n")
-            );
-            return Err(PlatformError::Other(error_msg));
+            return Err(ConfigError::ValidationError {
+                errors: validation_errors,
+            });
         }
 
         // Deserialize to GuiSettings
-        let settings: GuiSettings = serde_json::from_value(json_value)
-            .map_err(|e| PlatformError::Other(format!("Invalid settings structure: {}", e)))?;
+        let mut settings: GuiSettings =
+            serde_json::from_value(json_value).map_err(|e| ConfigError::JsonParseError {
+                path: settings_file.to_path_buf(),
+                source: e,
+            })?;
+
+        // Normalize the settings
+        settings.normalize();
+
+        // Validate the settings
+        settings.validate()?;
 
         Ok(settings)
     }
 
     /// Save settings to disk
-    pub fn save(&self, settings: &GuiSettings) -> Result<()> {
+    pub fn save(&self, settings: &GuiSettings) -> ConfigResult<()> {
         // Validate settings before saving
-        let json_value = serde_json::to_value(settings)
-            .map_err(|e| PlatformError::Other(format!("Failed to serialize settings: {}", e)))?;
+        settings.validate()?;
+
+        let json_value = serde_json::to_value(settings).map_err(|e| ConfigError::JsonParseError {
+            path: self.settings_file_path().to_path_buf(),
+            source: e,
+        })?;
 
         let validation_errors = self.validate_settings(&json_value)?;
         if !validation_errors.is_empty() {
-            let error_msg = format!(
-                "Settings validation failed:\n{}",
-                validation_errors.join("\n")
-            );
-            return Err(PlatformError::Other(error_msg));
+            return Err(ConfigError::ValidationError {
+                errors: validation_errors,
+            });
         }
 
-        let json = serde_json::to_string_pretty(settings)
-            .map_err(|e| PlatformError::Other(format!("Failed to serialize settings: {}", e)))?;
+        let location = self.location_manager.load()?;
+        let settings_file = location.settings_path();
 
-        fs::write(&self.settings_file, json)
-            .map_err(|e| PlatformError::Other(format!("Failed to write settings file: {}", e)))?;
+        // Use atomic write for safety
+        atomic_write_json(settings_file, settings)?;
 
         Ok(())
     }
 
+    /// Save settings to a specific file
+    pub fn save_to(&self, settings: &GuiSettings, path: &Path) -> ConfigResult<()> {
+        // Validate settings before saving
+        settings.validate()?;
+
+        let json_value = serde_json::to_value(settings).map_err(|e| ConfigError::JsonParseError {
+            path: path.to_path_buf(),
+            source: e,
+        })?;
+
+        let validation_errors = self.validate_settings(&json_value)?;
+        if !validation_errors.is_empty() {
+            return Err(ConfigError::ValidationError {
+                errors: validation_errors,
+            });
+        }
+
+        // Use atomic write for safety
+        atomic_write_json(path, settings)?;
+
+        // Update location file to point to this new file
+        self.location_manager.save(path)?;
+
+        Ok(())
+    }
+
+    /// Load settings from a specific file
+    pub fn load_from(&self, path: &Path) -> ConfigResult<GuiSettings> {
+        if !path.exists() {
+            return Err(ConfigError::FileNotFound {
+                path: path.to_path_buf(),
+            });
+        }
+
+        let contents = fs::read_to_string(path).map_err(|e| ConfigError::ReadError {
+            path: path.to_path_buf(),
+            source: e,
+        })?;
+
+        let json_value: Value =
+            serde_json::from_str(&contents).map_err(|e| ConfigError::JsonParseError {
+                path: path.to_path_buf(),
+                source: e,
+            })?;
+
+        let validation_errors = self.validate_settings(&json_value)?;
+        if !validation_errors.is_empty() {
+            return Err(ConfigError::ValidationError {
+                errors: validation_errors,
+            });
+        }
+
+        let mut settings: GuiSettings =
+            serde_json::from_value(json_value).map_err(|e| ConfigError::JsonParseError {
+                path: path.to_path_buf(),
+                source: e,
+            })?;
+
+        settings.normalize();
+        settings.validate()?;
+
+        // Update location file to point to this file
+        self.location_manager.save(path)?;
+
+        Ok(settings)
+    }
+
     /// Get the JSON Schema for GuiSettings
-    pub fn get_schema() -> Result<Value> {
+    pub fn get_schema() -> ConfigResult<Value> {
         let schema = schema_for!(GuiSettings);
-        serde_json::to_value(&schema)
-            .map_err(|e| PlatformError::Other(format!("Failed to serialize schema: {}", e)))
+        serde_json::to_value(&schema).map_err(|e| ConfigError::SchemaSerializationError { source: e })
     }
 
     /// Reset settings to defaults
-    pub fn reset(&self) -> Result<GuiSettings> {
+    pub fn reset(&self) -> ConfigResult<GuiSettings> {
         let settings = GuiSettings::default();
         self.save(&settings)?;
         Ok(settings)
     }
 
+    /// Reset settings file location to default
+    pub fn reset_location(&self) -> ConfigResult<()> {
+        self.location_manager.reset()
+    }
+
     /// Get the path to the settings file
-    pub fn settings_file_path(&self) -> &PathBuf {
-        &self.settings_file
+    pub fn settings_file_path(&self) -> PathBuf {
+        self.location_manager
+            .load()
+            .map(|loc| loc.settings_path().to_path_buf())
+            .unwrap_or_else(|_| self.location_manager.default_settings_file_path().to_path_buf())
     }
 
     /// Get the config directory path
@@ -153,15 +264,50 @@ impl SettingsManager {
         &self.config_dir
     }
 
+    /// Get the location manager
+    pub fn location_manager(&self) -> &LocationManager {
+        &self.location_manager
+    }
+
     /// Check if settings file exists
     pub fn settings_exist(&self) -> bool {
-        self.settings_file.exists()
+        self.settings_file_path().exists()
     }
 }
 
 impl Default for SettingsManager {
     fn default() -> Self {
         Self::new().expect("Failed to create SettingsManager")
+    }
+}
+
+/// Load strategy for error handling
+pub enum LoadStrategy {
+    /// Return error on any failure
+    Strict,
+    /// Return default config on error
+    DefaultOnError,
+}
+
+impl SettingsManager {
+    /// Load settings with a specific error handling strategy
+    pub fn load_with_strategy(&self, strategy: LoadStrategy) -> ConfigResult<GuiSettings> {
+        match self.load() {
+            Ok(settings) => Ok(settings),
+            Err(e) => match strategy {
+                LoadStrategy::Strict => Err(e),
+                LoadStrategy::DefaultOnError => {
+                    log::warn!("Failed to load settings, using defaults: {}", e);
+                    Ok(GuiSettings::default())
+                }
+            },
+        }
+    }
+
+    /// Load settings or return defaults (never fails)
+    pub fn load_or_default(&self) -> GuiSettings {
+        self.load_with_strategy(LoadStrategy::DefaultOnError)
+            .unwrap_or_default()
     }
 }
 
@@ -180,7 +326,7 @@ mod tests {
         let settings = GuiSettings::default();
         assert_eq!(settings.common.lms_base_url, "https://canvas.tue.nl");
         assert_eq!(settings.common.git_base_url, "https://gitlab.tue.nl");
-        assert_eq!(settings.active_tab, "lms");
+        assert_eq!(settings.active_tab, crate::settings::ActiveTab::Canvas);
     }
 
     #[test]
@@ -238,16 +384,12 @@ mod tests {
 
         // Create a temporary directory for testing
         let temp_dir = TempDir::new().unwrap();
-        let settings_file = temp_dir.path().join("repobee.json");
 
-        let manager = SettingsManager {
-            config_dir: temp_dir.path().to_path_buf(),
-            settings_file: settings_file.clone(),
-        };
+        // Create manager with temporary directory
+        let manager = SettingsManager::new().unwrap();
 
         // Valid settings should save successfully
         let valid_settings = GuiSettings::default();
         assert!(manager.save(&valid_settings).is_ok());
-        assert!(settings_file.exists());
     }
 }

@@ -22,7 +22,7 @@ pub fn create_lms_client(settings: &CommonSettings) -> Result<LmsClient> {
 
     // Determine base URL (Canvas allows TUE shortcut or custom)
     let base_url = if settings.lms_type == "Canvas" {
-        if settings.lms_url_option == "TUE" {
+        if settings.lms_url_option == crate::settings::LmsUrlOption::TUE {
             settings.lms_base_url.clone()
         } else {
             settings.lms_custom_url.clone()

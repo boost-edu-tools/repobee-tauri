@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke, Channel } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { SettingsMenu } from "./components/SettingsMenu";
+import type { GuiSettings } from "./types/settings";
 import "./App.css";
 
 interface FormState {
@@ -25,7 +27,7 @@ interface LmsFormState {
   lmsType: "Canvas" | "Moodle";
   baseUrl: string;
   customUrl: string;
-  urlOption: "TUE" | "Custom";
+  urlOption: "TUE" | "CUSTOM";
   accessToken: string;
   courseId: string;
   courseName: string;
@@ -57,6 +59,8 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
   const [lmsTokenDialogValue, setLmsTokenDialogValue] = useState("");
   const [showTokenInstructions, setShowTokenInstructions] = useState(false);
   const [tokenInstructions, setTokenInstructions] = useState("");
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [currentGuiSettings, setCurrentGuiSettings] = useState<GuiSettings | null>(null);
   const [lmsForm, setLmsForm] = useState<LmsFormState>({
     lmsType: "Canvas",
     baseUrl: "https://canvas.tue.nl",
@@ -109,7 +113,7 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       // Check if settings file exists first
       const fileExists = await invoke<boolean>("settings_exist");
 
-      const settings = await invoke<any>("load_settings");
+      const settings = await invoke<GuiSettings>("load_settings");
       console.log("Loaded settings:", settings);
 
       // Check if settings have the expected structure
@@ -117,62 +121,58 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         throw new Error("Invalid settings structure received from backend");
       }
 
+      // Store the full GuiSettings object
+      setCurrentGuiSettings(settings);
+
       // Settings are flattened (due to #[serde(flatten)] in Rust)
-      // All fields are at the top level
-      const isFlattened = 'lms_base_url' in settings;
-      const common = isFlattened ? settings : settings.common;
-
-      if (!common) {
-        throw new Error("Settings missing required fields");
-      }
-
-      const lmsBaseUrl = common.lms_base_url || "https://canvas.tue.nl";
+      // All fields are at the top level - use settings directly
+      const lmsBaseUrl = settings.lms_base_url || "https://canvas.tue.nl";
 
       // Populate LMS form from settings
       const loadedLmsForm: LmsFormState = {
-        lmsType: (common.lms_type || "Canvas") as "Canvas" | "Moodle",
+        lmsType: (settings.lms_type || "Canvas") as "Canvas" | "Moodle",
         baseUrl: lmsBaseUrl,
-        customUrl: common.lms_custom_url || "",
-        urlOption: (common.lms_url_option || "TUE") as "TUE" | "Custom",
-        accessToken: common.lms_access_token || "",
-        courseId: common.lms_course_id || "",
-        courseName: common.lms_course_name || "",
-        yamlFile: common.lms_yaml_file || "students.yaml",
-        infoFileFolder: common.lms_info_folder || "",
-        csvFile: common.lms_csv_file || "student-info.csv",
-        xlsxFile: common.lms_xlsx_file || "student-info.xlsx",
-        memberOption: (common.lms_member_option || "(email, gitid)") as "(email, gitid)" | "email" | "git_id",
-        includeGroup: common.lms_include_group ?? true,
-        includeMember: common.lms_include_member ?? true,
-        includeInitials: common.lms_include_initials ?? false,
-        fullGroups: common.lms_full_groups ?? true,
-        csv: common.lms_output_csv ?? false,
-        xlsx: common.lms_output_xlsx ?? false,
-        yaml: common.lms_output_yaml ?? true,
+        customUrl: settings.lms_custom_url || "",
+        urlOption: (settings.lms_url_option || "TUE") as "TUE" | "CUSTOM",
+        accessToken: settings.lms_access_token || "",
+        courseId: settings.lms_course_id || "",
+        courseName: settings.lms_course_name || "",
+        yamlFile: settings.lms_yaml_file || "students.yaml",
+        infoFileFolder: settings.lms_info_folder || "",
+        csvFile: settings.lms_csv_file || "student-info.csv",
+        xlsxFile: settings.lms_xlsx_file || "student-info.xlsx",
+        memberOption: (settings.lms_member_option || "(email, gitid)") as "(email, gitid)" | "email" | "git_id",
+        includeGroup: settings.lms_include_group ?? true,
+        includeMember: settings.lms_include_member ?? true,
+        includeInitials: settings.lms_include_initials ?? false,
+        fullGroups: settings.lms_full_groups ?? true,
+        csv: settings.lms_output_csv ?? false,
+        xlsx: settings.lms_output_xlsx ?? false,
+        yaml: settings.lms_output_yaml ?? true,
       };
 
       if (loadedLmsForm.lmsType !== "Canvas") {
-        loadedLmsForm.urlOption = "Custom";
+        loadedLmsForm.urlOption = "CUSTOM";
       }
 
       setLmsForm(loadedLmsForm);
 
       // Populate Repo form from settings
       setForm({
-        accessToken: common.git_access_token || "",
-        user: common.git_user || "",
-        baseUrl: common.git_base_url || "https://gitlab.tue.nl",
-        studentReposGroup: common.git_student_repos_group || "",
-        templateGroup: common.git_template_group || "",
-        yamlFile: common.yaml_file || "students.yaml",
-        targetFolder: common.target_folder || "",
-        assignments: common.assignments || "",
-        directoryLayout: (common.directory_layout || "flat") as "by-team" | "flat" | "by-task",
+        accessToken: settings.git_access_token || "",
+        user: settings.git_user || "",
+        baseUrl: settings.git_base_url || "https://gitlab.tue.nl",
+        studentReposGroup: settings.git_student_repos_group || "",
+        templateGroup: settings.git_template_group || "",
+        yamlFile: settings.yaml_file || "students.yaml",
+        targetFolder: settings.target_folder || "",
+        assignments: settings.assignments || "",
+        directoryLayout: (settings.directory_layout || "flat") as "by-team" | "flat" | "by-task",
         logLevels: {
-          info: common.log_info ?? true,
-          debug: common.log_debug ?? false,
-          warning: common.log_warning ?? true,
-          error: common.log_error ?? true,
+          info: settings.log_info ?? true,
+          debug: settings.log_debug ?? false,
+          warning: settings.log_warning ?? true,
+          error: settings.log_error ?? true,
         },
       });
 
@@ -197,6 +197,59 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       appendOutput("  Error: " + error);
       appendOutput("  Click 'Save Settings' to create a valid settings file");
     }
+  };
+
+  const handleSettingsLoaded = (settings: GuiSettings) => {
+    // Update the form state from loaded settings
+    setCurrentGuiSettings(settings);
+
+    // Update LMS form
+    setLmsForm({
+      lmsType: (settings.lms_type || "Canvas") as "Canvas" | "Moodle",
+      baseUrl: settings.lms_base_url || "https://canvas.tue.nl",
+      customUrl: settings.lms_custom_url || "",
+      urlOption: (settings.lms_url_option || "TUE") as "TUE" | "CUSTOM",
+      accessToken: settings.lms_access_token || "",
+      courseId: settings.lms_course_id || "",
+      courseName: settings.lms_course_name || "",
+      yamlFile: settings.lms_yaml_file || "students.yaml",
+      infoFileFolder: settings.lms_info_folder || "",
+      csvFile: settings.lms_csv_file || "student-info.csv",
+      xlsxFile: settings.lms_xlsx_file || "student-info.xlsx",
+      memberOption: (settings.lms_member_option || "(email, gitid)") as "(email, gitid)" | "email" | "git_id",
+      includeGroup: settings.lms_include_group ?? true,
+      includeMember: settings.lms_include_member ?? true,
+      includeInitials: settings.lms_include_initials ?? false,
+      fullGroups: settings.lms_full_groups ?? true,
+      csv: settings.lms_output_csv ?? false,
+      xlsx: settings.lms_output_xlsx ?? false,
+      yaml: settings.lms_output_yaml ?? true,
+    });
+
+    // Update Repo form
+    setForm({
+      accessToken: settings.git_access_token || "",
+      user: settings.git_user || "",
+      baseUrl: settings.git_base_url || "https://gitlab.tue.nl",
+      studentReposGroup: settings.git_student_repos_group || "",
+      templateGroup: settings.git_template_group || "",
+      yamlFile: settings.yaml_file || "students.yaml",
+      targetFolder: settings.target_folder || "",
+      assignments: settings.assignments || "",
+      directoryLayout: (settings.directory_layout || "flat") as "by-team" | "flat" | "by-task",
+      logLevels: {
+        info: settings.log_info ?? true,
+        debug: settings.log_debug ?? false,
+        warning: settings.log_warning ?? true,
+        error: settings.log_error ?? true,
+      },
+    });
+
+    // Update GUI-specific state
+    const tabValue = settings.active_tab === "repo" ? "repo" : "lms";
+    setActiveTab(tabValue as TabType);
+    setConfigLocked(settings.config_locked ?? true);
+    setOptionsLocked(settings.options_locked ?? true);
   };
 
   const saveSettingsToDisk = async () => {
@@ -281,7 +334,7 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
     setLmsForm((prev) => {
       const next = { ...prev, lmsType: value };
       if (value !== "Canvas") {
-        next.urlOption = "Custom";
+        next.urlOption = "CUSTOM";
       } else if (prev.baseUrl.trim() === "") {
         next.baseUrl = "https://canvas.tue.nl";
       }
@@ -633,11 +686,11 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
               <label>Base URL</label>
               <select
                 value={lmsForm.urlOption}
-                onChange={(e) => updateLmsForm("urlOption", e.target.value as "TUE" | "Custom")}
+                onChange={(e) => updateLmsForm("urlOption", e.target.value as "TUE" | "CUSTOM")}
                 disabled={lmsForm.lmsType !== "Canvas"}
               >
                 {lmsForm.lmsType === "Canvas" && <option value="TUE">TUE</option>}
-                <option value="Custom">Custom</option>
+                <option value="CUSTOM">Custom</option>
               </select>
               <input
                 type="text"
@@ -851,6 +904,9 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
             </button>
             <button className="btn-icon">i</button>
             <div className="spacer"></div>
+            <button className="btn-action" onClick={() => setSettingsMenuOpen(true)}>
+              Settings...
+            </button>
             <button className="btn-action" onClick={saveSettingsToDisk}>
               Save Settings
             </button>
@@ -1113,6 +1169,9 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         </button>
         <button className="btn-icon">i</button>
         <div className="spacer"></div>
+        <button className="btn-action" onClick={() => setSettingsMenuOpen(true)}>
+          Settings...
+        </button>
         <button className="btn-action" onClick={saveSettingsToDisk}>
           Save Settings
         </button>
@@ -1225,6 +1284,55 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
           </div>
         </div>
       )}
+
+      {/* Settings Menu */}
+      <SettingsMenu
+        isOpen={settingsMenuOpen}
+        onClose={() => setSettingsMenuOpen(false)}
+        currentSettings={currentGuiSettings || {
+          lms_type: lmsForm.lmsType,
+          lms_base_url: lmsForm.baseUrl,
+          lms_custom_url: lmsForm.customUrl,
+          lms_url_option: lmsForm.urlOption,
+          lms_access_token: lmsForm.accessToken,
+          lms_course_id: lmsForm.courseId,
+          lms_course_name: lmsForm.courseName,
+          lms_yaml_file: lmsForm.yamlFile,
+          lms_info_folder: lmsForm.infoFileFolder,
+          lms_csv_file: lmsForm.csvFile,
+          lms_xlsx_file: lmsForm.xlsxFile,
+          lms_member_option: lmsForm.memberOption,
+          lms_include_group: lmsForm.includeGroup,
+          lms_include_member: lmsForm.includeMember,
+          lms_include_initials: lmsForm.includeInitials,
+          lms_full_groups: lmsForm.fullGroups,
+          lms_output_csv: lmsForm.csv,
+          lms_output_xlsx: lmsForm.xlsx,
+          lms_output_yaml: lmsForm.yaml,
+          git_base_url: form.baseUrl,
+          git_access_token: form.accessToken,
+          git_user: form.user,
+          git_student_repos_group: form.studentReposGroup,
+          git_template_group: form.templateGroup,
+          yaml_file: form.yamlFile,
+          target_folder: form.targetFolder,
+          assignments: form.assignments,
+          directory_layout: form.directoryLayout,
+          log_info: form.logLevels.info,
+          log_debug: form.logLevels.debug,
+          log_warning: form.logLevels.warning,
+          log_error: form.logLevels.error,
+          active_tab: activeTab,
+          config_locked: configLocked,
+          options_locked: optionsLocked,
+          window_width: 0,
+          window_height: 0,
+          window_x: 0,
+          window_y: 0,
+        }}
+        onSettingsLoaded={handleSettingsLoaded}
+        onMessage={appendOutput}
+      />
     </div>
   );
 }

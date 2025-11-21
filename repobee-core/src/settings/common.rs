@@ -1,3 +1,5 @@
+use super::enums::{DirectoryLayout, LmsUrlOption, MemberOption};
+use super::normalization::{normalize_string, normalize_url, Normalize};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +18,7 @@ pub struct CommonSettings {
     pub lms_custom_url: String,
 
     #[serde(default = "defaults::lms_url_option")]
-    pub lms_url_option: String, // "Default" or "Custom"
+    pub lms_url_option: LmsUrlOption, // TUE or Custom
 
     #[serde(default)]
     pub lms_access_token: String,
@@ -40,7 +42,7 @@ pub struct CommonSettings {
     pub lms_xlsx_file: String,
 
     #[serde(default = "defaults::lms_member_option")]
-    pub lms_member_option: String, // "(email, gitid)", "email", "git_id"
+    pub lms_member_option: MemberOption, // EmailAndGitId, Email, GitId
 
     #[serde(default = "defaults::lms_include_group")]
     pub lms_include_group: bool,
@@ -90,7 +92,7 @@ pub struct CommonSettings {
     pub assignments: String,
 
     #[serde(default = "defaults::directory_layout")]
-    pub directory_layout: String, // "by-team", "flat", "by-task"
+    pub directory_layout: DirectoryLayout, // ByTeam, Flat, ByTask
 
     // ===== Logging Settings =====
     #[serde(default = "defaults::log_info")]
@@ -156,6 +158,8 @@ impl Default for CommonSettings {
 
 /// Default values for settings
 mod defaults {
+    use super::{DirectoryLayout, LmsUrlOption, MemberOption};
+
     pub fn lms_type() -> String {
         "Canvas".to_string()
     }
@@ -164,8 +168,8 @@ mod defaults {
         "https://canvas.tue.nl".to_string()
     }
 
-    pub fn lms_url_option() -> String {
-        "TUE".to_string()
+    pub fn lms_url_option() -> LmsUrlOption {
+        LmsUrlOption::TUE
     }
 
     pub fn lms_yaml_file() -> String {
@@ -180,8 +184,8 @@ mod defaults {
         "student-info.xlsx".to_string()
     }
 
-    pub fn lms_member_option() -> String {
-        "(email, gitid)".to_string()
+    pub fn lms_member_option() -> MemberOption {
+        MemberOption::EmailAndGitId
     }
 
     pub fn lms_include_group() -> bool {
@@ -208,8 +212,8 @@ mod defaults {
         "students.yaml".to_string()
     }
 
-    pub fn directory_layout() -> String {
-        "flat".to_string()
+    pub fn directory_layout() -> DirectoryLayout {
+        DirectoryLayout::Flat
     }
 
     pub fn log_info() -> bool {
@@ -222,5 +226,30 @@ mod defaults {
 
     pub fn log_error() -> bool {
         true
+    }
+}
+
+impl Normalize for CommonSettings {
+    fn normalize(&mut self) {
+        // Normalize URL fields
+        normalize_url(&mut self.lms_base_url);
+        normalize_url(&mut self.lms_custom_url);
+        normalize_url(&mut self.git_base_url);
+
+        // Normalize string fields
+        normalize_string(&mut self.lms_access_token);
+        normalize_string(&mut self.lms_course_id);
+        normalize_string(&mut self.lms_course_name);
+        normalize_string(&mut self.lms_yaml_file);
+        normalize_string(&mut self.lms_info_folder);
+        normalize_string(&mut self.lms_csv_file);
+        normalize_string(&mut self.lms_xlsx_file);
+        normalize_string(&mut self.git_access_token);
+        normalize_string(&mut self.git_user);
+        normalize_string(&mut self.git_student_repos_group);
+        normalize_string(&mut self.git_template_group);
+        normalize_string(&mut self.yaml_file);
+        normalize_string(&mut self.target_folder);
+        normalize_string(&mut self.assignments);
     }
 }
