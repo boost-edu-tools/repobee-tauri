@@ -92,7 +92,7 @@ fn test_load_nonexistent_file() {
         .arg("--show")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Failed to load settings"));
+        .stderr(predicate::str::contains("Failed to read config file"));
 }
 
 // ===== CLI Argument Override Tests =====

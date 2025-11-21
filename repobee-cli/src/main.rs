@@ -6,7 +6,8 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use repobee_core::{
-    setup_student_repos, CommonSettings, Platform, PlatformAPI, SettingsManager, StudentTeam,
+    setup_student_repos, CommonSettings, GuiSettings, Platform, PlatformAPI, SettingsManager,
+    StudentTeam,
 };
 use std::path::PathBuf;
 
@@ -251,11 +252,15 @@ impl ConfigManager {
     }
 
     /// Load configuration from a specific path
+    /// Note: This does NOT change the active settings location - it's just for this run
     fn load(&mut self, path: &PathBuf) -> Result<()> {
-        let gui_settings = self
-            .settings_manager
-            .load_from(path)
-            .context("Failed to load settings")?;
+        // Read and parse the file directly without updating location
+        let contents = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read config file: {}", path.display()))?;
+
+        let gui_settings: GuiSettings = serde_json::from_str(&contents)
+            .with_context(|| format!("Invalid JSON in config file: {}", path.display()))?;
+
         self.config = gui_settings.common;
         println!("Settings loaded from: {}", path.display());
         Ok(())
