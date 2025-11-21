@@ -251,6 +251,74 @@ async fn load_settings_or_default() -> Result<GuiSettings, String> {
     Ok(manager.load_or_default())
 }
 
+// ===== Profile Commands =====
+
+/// List all available profiles
+#[tauri::command]
+async fn list_profiles() -> Result<Vec<String>, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .list_profiles()
+        .map_err(|e| format!("Failed to list profiles: {}", e))
+}
+
+/// Get the currently active profile
+#[tauri::command]
+async fn get_active_profile() -> Result<Option<String>, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .get_active_profile()
+        .map_err(|e| format!("Failed to get active profile: {}", e))
+}
+
+/// Load a profile by name
+#[tauri::command]
+async fn load_profile(name: String) -> Result<GuiSettings, String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .load_profile(&name)
+        .map_err(|e| format!("Failed to load profile '{}': {}", name, e))
+}
+
+/// Save current settings as a named profile
+#[tauri::command]
+async fn save_profile(name: String, settings: GuiSettings) -> Result<(), String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .save_profile(&name, &settings)
+        .map_err(|e| format!("Failed to save profile '{}': {}", name, e))
+}
+
+/// Delete a profile by name
+#[tauri::command]
+async fn delete_profile(name: String) -> Result<(), String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .delete_profile(&name)
+        .map_err(|e| format!("Failed to delete profile '{}': {}", name, e))
+}
+
+/// Rename a profile
+#[tauri::command]
+async fn rename_profile(old_name: String, new_name: String) -> Result<(), String> {
+    let manager = SettingsManager::new()
+        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
+
+    manager
+        .rename_profile(&old_name, &new_name)
+        .map_err(|e| format!("Failed to rename profile: {}", e))
+}
+
 /// Get token generation instructions for an LMS type
 #[tauri::command]
 async fn get_token_instructions(lms_type: String) -> Result<String, String> {
@@ -669,6 +737,12 @@ pub fn run() {
             get_settings_schema,
             reset_settings_location,
             load_settings_or_default,
+            list_profiles,
+            get_active_profile,
+            load_profile,
+            save_profile,
+            delete_profile,
+            rename_profile,
             get_token_instructions,
             open_token_url,
             verify_lms_course,

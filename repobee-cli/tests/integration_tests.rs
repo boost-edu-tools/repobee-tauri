@@ -5,12 +5,37 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
+use std::path::PathBuf;
 use tempfile::TempDir;
+
+// ===== Test Config Directory =====
+
+/// Get the test config directory path (within the repo, in sandbox)
+fn get_test_config_dir() -> PathBuf {
+    let mut path = std::env::current_dir().unwrap();
+    path.push(".test-config");
+    path
+}
+
+/// Setup test config directory and return it
+fn setup_test_config_dir() -> PathBuf {
+    let dir = get_test_config_dir();
+    // Clean up any previous test runs
+    if dir.exists() {
+        let _ = fs::remove_dir_all(&dir);
+    }
+    fs::create_dir_all(&dir).unwrap();
+    dir
+}
 
 // ===== Helper Functions =====
 
 fn cli() -> Command {
-    Command::cargo_bin("repobee-cli").unwrap()
+    let mut cmd = Command::cargo_bin("repobee-cli").unwrap();
+    // Set test config directory
+    let test_dir = setup_test_config_dir();
+    cmd.env("REPOBEE_CONFIG_DIR", test_dir.to_str().unwrap());
+    cmd
 }
 
 fn create_test_config(dir: &TempDir, content: &str) -> std::path::PathBuf {
@@ -319,6 +344,36 @@ fn test_yaml_file_option() {
         .assert()
         .success()
         .stdout(predicate::str::contains("/path/to/students.yaml"));
+}
+
+// ===== Config Directory Tests =====
+
+#[test]
+fn test_config_directory_is_in_sandbox() {
+    // This test verifies that the config directory is within the repo
+    // and accessible within the sandbox
+    let test_dir = get_test_config_dir();
+
+    // Verify it's a relative path within the repo
+    assert!(test_dir.to_string_lossy().contains(".test-config"));
+
+    // Run a command that will create the config directory
+    cli()
+        .arg("settings")
+        .arg("show")
+        .assert()
+        .success();
+
+    // Verify the directory exists and is accessible
+    assert!(test_dir.exists(), "Test config directory should exist");
+
+    // Verify we can read and write to it
+    let test_file = test_dir.join("test.txt");
+    std::fs::write(&test_file, "test").unwrap();
+    assert!(test_file.exists());
+
+    // Clean up
+    std::fs::remove_file(test_file).unwrap();
 }
 
 // ===== Complete Workflow Tests =====

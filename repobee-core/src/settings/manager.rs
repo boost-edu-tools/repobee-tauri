@@ -17,8 +17,18 @@ pub struct SettingsManager {
 
 impl SettingsManager {
     /// Create a new settings manager
+    ///
+    /// Checks for REPOBEE_CONFIG_DIR environment variable first,
+    /// then falls back to platform-specific directory.
     pub fn new() -> ConfigResult<Self> {
         let config_dir = Self::get_config_dir()?;
+        Self::new_with_dir(config_dir)
+    }
+
+    /// Create a new settings manager with a custom config directory
+    ///
+    /// This is useful for testing or when you want to use a non-standard location.
+    pub fn new_with_dir(config_dir: PathBuf) -> ConfigResult<Self> {
         let location_manager = LocationManager::new(&config_dir, "repobee");
 
         // Ensure config directory exists
@@ -36,7 +46,14 @@ impl SettingsManager {
     }
 
     /// Get platform-specific config directory
+    ///
+    /// Checks REPOBEE_CONFIG_DIR environment variable first,
+    /// then uses platform-specific directories.
     fn get_config_dir() -> ConfigResult<PathBuf> {
+        // Check for environment variable override
+        if let Ok(config_dir) = std::env::var("REPOBEE_CONFIG_DIR") {
+            return Ok(PathBuf::from(config_dir));
+        }
         // Try using directories crate first for better XDG compliance
         if let Some(proj_dirs) = directories::ProjectDirs::from("", "", "repobee-tauri") {
             return Ok(proj_dirs.config_dir().to_path_buf());
@@ -273,6 +290,189 @@ impl SettingsManager {
     /// Check if settings file exists
     pub fn settings_exist(&self) -> bool {
         self.settings_file_path().exists()
+    }
+
+    // ===== Profile Management =====
+
+    /// Get the profiles directory path
+    fn profiles_dir(&self) -> PathBuf {
+        self.config_dir.join("profiles")
+    }
+
+    /// Get the active profile file path
+    fn active_profile_file(&self) -> PathBuf {
+        self.config_dir.join("active-profile.txt")
+    }
+
+    /// Ensure profiles directory exists
+    fn ensure_profiles_dir(&self) -> ConfigResult<()> {
+        let profiles_dir = self.profiles_dir();
+        fs::create_dir_all(&profiles_dir).map_err(|e| ConfigError::CreateDirError {
+            path: profiles_dir,
+            source: e,
+        })
+    }
+
+    /// List all available profiles
+    pub fn list_profiles(&self) -> ConfigResult<Vec<String>> {
+        self.ensure_profiles_dir()?;
+        let profiles_dir = self.profiles_dir();
+
+        let mut profiles = Vec::new();
+        let entries = fs::read_dir(&profiles_dir).map_err(|e| ConfigError::ReadError {
+            path: profiles_dir.clone(),
+            source: e,
+        })?;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| ConfigError::Other(e.to_string()))?;
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("json") {
+                if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                    profiles.push(name.to_string());
+                }
+            }
+        }
+
+        profiles.sort();
+        Ok(profiles)
+    }
+
+    /// Get the currently active profile name
+    pub fn get_active_profile(&self) -> ConfigResult<Option<String>> {
+        let active_file = self.active_profile_file();
+        if !active_file.exists() {
+            return Ok(None);
+        }
+
+        let content = fs::read_to_string(&active_file).map_err(|e| ConfigError::ReadError {
+            path: active_file,
+            source: e,
+        })?;
+
+        Ok(Some(content.trim().to_string()))
+    }
+
+    /// Set the active profile
+    pub fn set_active_profile(&self, name: &str) -> ConfigResult<()> {
+        let active_file = self.active_profile_file();
+        fs::write(&active_file, name).map_err(|e| ConfigError::WriteError {
+            path: active_file,
+            source: e,
+        })
+    }
+
+    /// Load a profile by name
+    pub fn load_profile(&self, name: &str) -> ConfigResult<GuiSettings> {
+        self.ensure_profiles_dir()?;
+        let profile_path = self.profiles_dir().join(format!("{}.json", name));
+
+        if !profile_path.exists() {
+            return Err(ConfigError::FileNotFound {
+                path: profile_path,
+            });
+        }
+
+        let contents = fs::read_to_string(&profile_path).map_err(|e| ConfigError::ReadError {
+            path: profile_path.clone(),
+            source: e,
+        })?;
+
+        let json_value: serde_json::Value = serde_json::from_str(&contents)
+            .map_err(|e| ConfigError::JsonParseError {
+                path: profile_path.clone(),
+                source: e,
+            })?;
+
+        let validation_errors = self.validate_settings(&json_value)?;
+        if !validation_errors.is_empty() {
+            return Err(ConfigError::ValidationError {
+                errors: validation_errors,
+            });
+        }
+
+        let mut settings: GuiSettings = serde_json::from_value(json_value)
+            .map_err(|e| ConfigError::JsonParseError {
+                path: profile_path,
+                source: e,
+            })?;
+
+        settings.normalize();
+        settings.validate()?;
+
+        // Set as active profile
+        self.set_active_profile(name)?;
+
+        Ok(settings)
+    }
+
+    /// Save current settings as a named profile
+    pub fn save_profile(&self, name: &str, settings: &GuiSettings) -> ConfigResult<()> {
+        settings.validate()?;
+        self.ensure_profiles_dir()?;
+
+        let profile_path = self.profiles_dir().join(format!("{}.json", name));
+        atomic_write_json(&profile_path, settings)?;
+
+        // Set as active profile
+        self.set_active_profile(name)?;
+
+        Ok(())
+    }
+
+    /// Delete a profile by name
+    pub fn delete_profile(&self, name: &str) -> ConfigResult<()> {
+        let profile_path = self.profiles_dir().join(format!("{}.json", name));
+
+        if !profile_path.exists() {
+            return Err(ConfigError::FileNotFound {
+                path: profile_path,
+            });
+        }
+
+        fs::remove_file(&profile_path).map_err(|e| ConfigError::WriteError {
+            path: profile_path,
+            source: e,
+        })?;
+
+        // Clear active profile if it was the deleted one
+        if self.get_active_profile()? == Some(name.to_string()) {
+            let active_file = self.active_profile_file();
+            let _ = fs::remove_file(active_file);
+        }
+
+        Ok(())
+    }
+
+    /// Rename a profile
+    pub fn rename_profile(&self, old_name: &str, new_name: &str) -> ConfigResult<()> {
+        let old_path = self.profiles_dir().join(format!("{}.json", old_name));
+        let new_path = self.profiles_dir().join(format!("{}.json", new_name));
+
+        if !old_path.exists() {
+            return Err(ConfigError::FileNotFound {
+                path: old_path,
+            });
+        }
+
+        if new_path.exists() {
+            return Err(ConfigError::Other(format!(
+                "Profile '{}' already exists",
+                new_name
+            )));
+        }
+
+        fs::rename(&old_path, &new_path).map_err(|e| ConfigError::WriteError {
+            path: new_path,
+            source: e,
+        })?;
+
+        // Update active profile if it was the renamed one
+        if self.get_active_profile()? == Some(old_name.to_string()) {
+            self.set_active_profile(new_name)?;
+        }
+
+        Ok(())
     }
 }
 

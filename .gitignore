@@ -21,6 +21,7 @@ target/
 **/file:
 repobee-core/test-*/
 repobee-cli/test-*/
+.test-config/
 
 # RepoBee work directory
 repobee-work/

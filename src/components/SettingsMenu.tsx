@@ -22,6 +22,9 @@ export function SettingsMenu({
   const [settingsPath, setSettingsPath] = useState<string>("");
   const [schemaVisible, setSchemaVisible] = useState(false);
   const [schema, setSchema] = useState<any>(null);
+  const [profiles, setProfiles] = useState<string[]>([]);
+  const [activeProfile, setActiveProfile] = useState<string | null>(null);
+  const [newProfileName, setNewProfileName] = useState<string>("");
 
   // Load current settings path when menu opens
   const loadSettingsPath = async () => {
@@ -33,10 +36,60 @@ export function SettingsMenu({
     }
   };
 
-  // Load settings path when menu opens
+  // Load profiles and active profile
+  const loadProfiles = async () => {
+    try {
+      const profileList = await invoke<string[]>("list_profiles");
+      setProfiles(profileList);
+      const active = await invoke<string | null>("get_active_profile");
+      setActiveProfile(active);
+    } catch (error) {
+      console.error("Failed to load profiles:", error);
+    }
+  };
+
+  // Load settings path and profiles when menu opens
   if (isOpen && !settingsPath) {
     loadSettingsPath();
+    loadProfiles();
   }
+
+  const handleLoadProfile = async (name: string) => {
+    try {
+      const settings = await invoke<GuiSettings>("load_profile", { name });
+      onSettingsLoaded(settings);
+      setActiveProfile(name);
+      onMessage(`✓ Loaded profile: ${name}`);
+    } catch (error) {
+      onMessage(`✗ Failed to load profile: ${error}`);
+    }
+  };
+
+  const handleSaveAsProfile = async () => {
+    if (!newProfileName.trim()) {
+      onMessage("✗ Please enter a profile name");
+      return;
+    }
+    try {
+      await invoke("save_profile", { name: newProfileName, settings: currentSettings });
+      onMessage(`✓ Saved profile: ${newProfileName}`);
+      setNewProfileName("");
+      await loadProfiles();
+    } catch (error) {
+      onMessage(`✗ Failed to save profile: ${error}`);
+    }
+  };
+
+  const handleDeleteProfile = async (name: string) => {
+    if (!confirm(`Delete profile "${name}"?`)) return;
+    try {
+      await invoke("delete_profile", { name });
+      onMessage(`✓ Deleted profile: ${name}`);
+      await loadProfiles();
+    } catch (error) {
+      onMessage(`✗ Failed to delete profile: ${error}`);
+    }
+  };
 
   const handleImport = async () => {
     try {
@@ -157,6 +210,54 @@ export function SettingsMenu({
         </div>
 
         <div className="settings-menu-content">
+          {/* Configuration Profiles */}
+          <section className="settings-section">
+            <h3>Configuration Profiles</h3>
+            {profiles.length > 0 && (
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ display: "block", marginBottom: "4px", fontSize: "12px" }}>
+                  Active Profile: <strong>{activeProfile || "None"}</strong>
+                </label>
+                <select
+                  value={activeProfile || ""}
+                  onChange={(e) => handleLoadProfile(e.target.value)}
+                  style={{ width: "100%", padding: "6px", borderRadius: "4px", border: "1px solid #ccc" }}
+                >
+                  <option value="">-- Select Profile --</option>
+                  {profiles.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+              <input
+                type="text"
+                placeholder="New profile name"
+                value={newProfileName}
+                onChange={(e) => setNewProfileName(e.target.value)}
+                style={{ flex: 1, padding: "6px", borderRadius: "4px", border: "1px solid #ccc" }}
+              />
+              <button className="btn-small" onClick={handleSaveAsProfile}>
+                Save As
+              </button>
+            </div>
+            {activeProfile && (
+              <button
+                className="btn-action btn-warning"
+                style={{ width: "100%", fontSize: "12px" }}
+                onClick={() => handleDeleteProfile(activeProfile)}
+              >
+                Delete Current Profile
+              </button>
+            )}
+            <p className="help-text">
+              Save different configurations for different courses or semesters.
+            </p>
+          </section>
+
           {/* Current Settings File */}
           <section className="settings-section">
             <h3>Current Settings File</h3>
