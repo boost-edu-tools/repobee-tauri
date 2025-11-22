@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { save, open } from "@tauri-apps/plugin-dialog";
-import { Modal, Button, Input, Select, Space, Divider, Typography } from "antd";
+import { Modal, Button, Input, Select, Space, Divider, Typography, Alert, App } from "antd";
 import type { GuiSettings } from "../types/settings";
 
 const { Title, Text, Paragraph } = Typography;
+const { useApp } = App;
 
 interface SettingsMenuProps {
   isOpen: boolean;
@@ -21,12 +22,14 @@ export function SettingsMenu({
   onSettingsLoaded,
   onMessage,
 }: SettingsMenuProps) {
+  const { modal } = useApp();
   const [settingsPath, setSettingsPath] = useState<string>("");
   const [schemaVisible, setSchemaVisible] = useState(false);
   const [schema, setSchema] = useState<any>(null);
   const [profiles, setProfiles] = useState<string[]>([]);
   const [activeProfile, setActiveProfile] = useState<string | null>(null);
   const [newProfileName, setNewProfileName] = useState<string>("");
+  const [successFlash, setSuccessFlash] = useState(false);
   const schemaRef = useRef<HTMLPreElement>(null);
 
   // Auto-scroll to schema when it becomes visible
@@ -64,11 +67,18 @@ export function SettingsMenu({
     loadProfiles();
   }
 
+  // Show success flash animation
+  const showSuccessFlash = () => {
+    setSuccessFlash(true);
+    setTimeout(() => setSuccessFlash(false), 500);
+  };
+
   const handleLoadProfile = async (name: string) => {
     try {
       const settings = await invoke<GuiSettings>("load_profile", { name });
       onSettingsLoaded(settings);
       setActiveProfile(name);
+      showSuccessFlash();
       onMessage(`✓ Loaded profile: ${name}`);
     } catch (error) {
       onMessage(`✗ Failed to load profile: ${error}`);
@@ -82,6 +92,7 @@ export function SettingsMenu({
     }
     try {
       await invoke("save_profile", { name: newProfileName, settings: currentSettings });
+      showSuccessFlash();
       onMessage(`✓ Saved profile: ${newProfileName}`);
       setNewProfileName("");
       await loadProfiles();
@@ -91,15 +102,17 @@ export function SettingsMenu({
   };
 
   const handleDeleteProfile = async (name: string) => {
-    Modal.confirm({
+    modal.confirm({
       title: "Delete Profile",
       content: `Delete profile "${name}"?`,
       okText: "Delete",
       okType: "danger",
       cancelText: "Cancel",
+      centered: true,
       onOk: async () => {
         try {
           await invoke("delete_profile", { name });
+          showSuccessFlash();
           onMessage(`✓ Deleted profile: ${name}`);
           await loadProfiles();
         } catch (error) {
@@ -124,6 +137,7 @@ export function SettingsMenu({
           path: filePath,
         });
         onSettingsLoaded(settings);
+        showSuccessFlash();
         onMessage(`✓ Settings imported from: ${filePath}`);
         await loadSettingsPath();
         onClose();
@@ -148,6 +162,7 @@ export function SettingsMenu({
           settings: currentSettings,
           path: filePath,
         });
+        showSuccessFlash();
         onMessage(`✓ Settings exported to: ${filePath}`);
       }
     } catch (error) {
@@ -156,16 +171,18 @@ export function SettingsMenu({
   };
 
   const handleReset = async () => {
-    Modal.confirm({
+    modal.confirm({
       title: "Reset Settings",
       content: "Are you sure you want to reset all settings to defaults?\nThis cannot be undone.",
       okText: "Reset",
       okType: "danger",
       cancelText: "Cancel",
+      centered: true,
       onOk: async () => {
         try {
           const settings = await invoke<GuiSettings>("reset_settings");
           onSettingsLoaded(settings);
+          showSuccessFlash();
           onMessage("✓ Settings reset to defaults");
           await loadSettingsPath();
           onClose();
@@ -177,15 +194,17 @@ export function SettingsMenu({
   };
 
   const handleResetLocation = async () => {
-    Modal.confirm({
+    modal.confirm({
       title: "Reset Location",
       content: "Reset settings file location to default?\nCurrent settings will be preserved.",
       okText: "Reset",
       cancelText: "Cancel",
+      centered: true,
       onOk: async () => {
         try {
           const newPath = await invoke<string>("reset_settings_location");
           setSettingsPath(newPath);
+          showSuccessFlash();
           onMessage(`✓ Settings location reset to: ${newPath}`);
         } catch (error) {
           onMessage(`✗ Failed to reset location: ${error}`);
@@ -212,6 +231,7 @@ export function SettingsMenu({
   const handleCopyPath = () => {
     if (settingsPath) {
       navigator.clipboard.writeText(settingsPath);
+      showSuccessFlash();
       onMessage("✓ Path copied to clipboard");
     }
   };
@@ -228,10 +248,22 @@ export function SettingsMenu({
       ]}
       width={600}
       styles={{
-        body: { maxHeight: '70vh', overflowY: 'auto' }
+        body: {
+          maxHeight: '70vh',
+          overflowY: 'auto',
+          transition: 'background-color 0.3s ease',
+          backgroundColor: successFlash ? '#f6ffed' : 'transparent',
+        }
       }}
     >
       <Space direction="vertical" style={{ width: "100%" }} size="middle">
+        {/* Help text banner */}
+        <Alert
+          message="All operations in this menu take effect immediately"
+          type="info"
+          showIcon
+          style={{ fontSize: '11px', padding: '4px 12px' }}
+        />
         {/* Configuration Profiles */}
         <div>
           <Title level={5} style={{ marginBottom: 8 }}>Configuration Profiles</Title>

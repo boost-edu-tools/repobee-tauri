@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke, Channel } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
+import { message, open } from "@tauri-apps/plugin-dialog";
+import { getCurrentWindow, type Window } from "@tauri-apps/api/window";
 import {
   Form,
   Input,
@@ -16,7 +17,8 @@ import {
   Tabs,
   Modal,
   Collapse,
-  ConfigProvider
+  ConfigProvider,
+  App as AntApp
 } from "antd";
 import { SettingsMenu } from "./components/SettingsMenu";
 import type { GuiSettings } from "./types/settings";
@@ -66,6 +68,11 @@ type TabType = "lms" | "repo";
 
 function App() {
   const settingsLoadedRef = useRef(false);
+  const isDirtyRef = useRef(false);
+  const isClosingRef = useRef(false); // Prevent re-entry during close process
+  const allowImmediateCloseRef = useRef(false); // Let one close through when we intentionally close
+  const pendingCloseWindowRef = useRef<Window | null>(null);
+  const [closePromptVisible, setClosePromptVisible] = useState(false);
 const [activeTab, setActiveTab] = useState<TabType>("lms");
   const [configLocked, setConfigLocked] = useState(true);
   const [optionsLocked, setOptionsLocked] = useState(true);
@@ -117,6 +124,86 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
     },
   });
 
+  // Track last saved state for dirty checking - initialize with default values
+  const [lastSavedState, setLastSavedState] = useState<{
+    lmsForm: LmsFormState;
+    form: FormState;
+    activeTab: TabType;
+    configLocked: boolean;
+    optionsLocked: boolean;
+  }>({
+    lmsForm: {
+      lmsType: "Canvas",
+      baseUrl: "https://canvas.tue.nl",
+      customUrl: "",
+      urlOption: "TUE",
+      accessToken: "",
+      courseId: "",
+      courseName: "",
+      yamlFile: "students.yaml",
+      infoFileFolder: "",
+      csvFile: "student-info.csv",
+      xlsxFile: "student-info.xlsx",
+      memberOption: "(email, gitid)",
+      includeGroup: true,
+      includeMember: true,
+      includeInitials: false,
+      fullGroups: true,
+      csv: false,
+      xlsx: false,
+      yaml: true,
+    },
+    form: {
+      accessToken: "",
+      user: "",
+      baseUrl: "https://gitlab.tue.nl",
+      studentReposGroup: "",
+      templateGroup: "",
+      yamlFile: "",
+      targetFolder: "",
+      assignments: "",
+      directoryLayout: "flat",
+      logLevels: {
+        info: true,
+        debug: false,
+        warning: true,
+        error: true,
+      },
+    },
+    activeTab: "lms",
+    configLocked: true,
+    optionsLocked: true,
+  });
+
+  // Compute dirty state by comparing current state to last saved
+  // Note: activeTab, configLocked, and optionsLocked are excluded as they are UI state, not data changes
+  const isDirty = (
+    JSON.stringify(lmsForm) !== JSON.stringify(lastSavedState.lmsForm) ||
+    JSON.stringify(form) !== JSON.stringify(lastSavedState.form)
+  );
+
+  // Keep ref in sync with isDirty for use in event handlers
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
+
+  // Basic startup log so we know the frontend mounted
+  useEffect(() => {
+    console.info("[startup] RepoBee GUI mounted and ready");
+  }, []);
+
+  const resetClosePrompt = () => {
+    pendingCloseWindowRef.current = null;
+    setClosePromptVisible(false);
+    isClosingRef.current = false;
+    allowImmediateCloseRef.current = false;
+  };
+
+  const showClosePrompt = (windowToClose: Window) => {
+    pendingCloseWindowRef.current = windowToClose;
+    setClosePromptVisible(true);
+  };
+
   // Load settings on startup (only once, even with React StrictMode)
   useEffect(() => {
     if (!settingsLoadedRef.current) {
@@ -124,6 +211,74 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       loadSettingsFromDisk();
     }
   }, []);
+
+  // Handle window close events with unsaved changes check
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const setupCloseHandler = async () => {
+      try {
+        const currentWindow = getCurrentWindow();
+
+        console.info("[window] registering close handler");
+
+        unlisten = await currentWindow.onCloseRequested(async (event) => {
+          console.info("[window] close requested", {
+            dirty: isDirtyRef.current,
+            closing: isClosingRef.current,
+          });
+
+          // If we explicitly allowed the close, let it pass
+          if (allowImmediateCloseRef.current) {
+            allowImmediateCloseRef.current = false;
+            console.info("[window] close allowed (whitelisted)");
+            return;
+          }
+
+          // Prevent re-entry while already processing a close
+          if (isClosingRef.current) {
+            event.preventDefault();
+            console.info("[window] close in progress - keeping window open");
+            return;
+          }
+
+          // Always block the close to ensure we stay in control
+          event.preventDefault();
+
+          // Mark that we're handling a close request to avoid loops
+          isClosingRef.current = true;
+
+          pendingCloseWindowRef.current = currentWindow;
+
+          if (!isDirtyRef.current) {
+            console.info("[window] no unsaved changes; proceeding to close");
+            allowImmediateCloseRef.current = true;
+            await pendingCloseWindowRef.current.close();
+            return;
+          }
+
+          // Unsaved changes: show prompt and let user decide
+          showClosePrompt(currentWindow);
+        });
+
+        console.info("[window] close handler registered");
+      } catch (error) {
+        console.error('Error setting up close handler:', error);
+        await message(`Unable to enable close confirmation: ${error}`, {
+          title: "Close confirmation disabled",
+          kind: "error",
+        });
+      }
+    };
+
+    setupCloseHandler();
+
+    return () => {
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, []); // Only run once on mount
 
   const loadSettingsFromDisk = async () => {
     try {
@@ -174,14 +329,14 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
 
       setLmsForm(loadedLmsForm);
 
-      // Populate Repo form from settings
-      setForm({
+      // Create form state object
+      const loadedForm: FormState = {
         accessToken: settings.git_access_token || "",
         user: settings.git_user || "",
         baseUrl: settings.git_base_url || "https://gitlab.tue.nl",
         studentReposGroup: settings.git_student_repos_group || "",
         templateGroup: settings.git_template_group || "",
-        yamlFile: settings.yaml_file || "students.yaml",
+        yamlFile: settings.yaml_file || "",
         targetFolder: settings.target_folder || "",
         assignments: settings.assignments || "",
         directoryLayout: (settings.directory_layout || "flat") as "by-team" | "flat" | "by-task",
@@ -191,13 +346,28 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
           warning: settings.log_warning ?? true,
           error: settings.log_error ?? true,
         },
-      });
+      };
+
+      // Populate Repo form from settings
+      setForm(loadedForm);
 
       // GUI-specific settings
       const savedTab = settings.active_tab === "repo" ? "repo" : "lms";
+      const savedConfigLocked = settings.config_locked ?? true;
+      const savedOptionsLocked = settings.options_locked ?? true;
+
       setActiveTab(savedTab as TabType);
-      setConfigLocked(settings.config_locked ?? true);
-      setOptionsLocked(settings.options_locked ?? true);
+      setConfigLocked(savedConfigLocked);
+      setOptionsLocked(savedOptionsLocked);
+
+      // Store current state as last saved state (deep copy to prevent reference issues)
+      setLastSavedState({
+        lmsForm: JSON.parse(JSON.stringify(loadedLmsForm)),
+        form: JSON.parse(JSON.stringify(loadedForm)),
+        activeTab: savedTab as TabType,
+        configLocked: savedConfigLocked,
+        optionsLocked: savedOptionsLocked,
+      });
 
       // Show appropriate message based on whether file existed
       if (fileExists) {
@@ -221,7 +391,7 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
     setCurrentGuiSettings(settings);
 
     // Update LMS form
-    setLmsForm({
+    const newLmsForm = {
       lmsType: (settings.lms_type || "Canvas") as "Canvas" | "Moodle",
       baseUrl: settings.lms_base_url || "https://canvas.tue.nl",
       customUrl: settings.lms_custom_url || "",
@@ -241,10 +411,11 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       csv: settings.lms_output_csv ?? false,
       xlsx: settings.lms_output_xlsx ?? false,
       yaml: settings.lms_output_yaml ?? true,
-    });
+    };
+    setLmsForm(newLmsForm);
 
     // Update Repo form
-    setForm({
+    const newForm = {
       accessToken: settings.git_access_token || "",
       user: settings.git_user || "",
       baseUrl: settings.git_base_url || "https://gitlab.tue.nl",
@@ -260,13 +431,25 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         warning: settings.log_warning ?? true,
         error: settings.log_error ?? true,
       },
-    });
+    };
+    setForm(newForm);
 
     // Update GUI-specific state
     const tabValue = settings.active_tab === "repo" ? "repo" : "lms";
     setActiveTab(tabValue as TabType);
-    setConfigLocked(settings.config_locked ?? true);
-    setOptionsLocked(settings.options_locked ?? true);
+    const newConfigLocked = settings.config_locked ?? true;
+    const newOptionsLocked = settings.options_locked ?? true;
+    setConfigLocked(newConfigLocked);
+    setOptionsLocked(newOptionsLocked);
+
+    // Update last saved state (deep copy to prevent reference issues)
+    setLastSavedState({
+      lmsForm: JSON.parse(JSON.stringify(newLmsForm)),
+      form: JSON.parse(JSON.stringify(newForm)),
+      activeTab: tabValue as TabType,
+      configLocked: newConfigLocked,
+      optionsLocked: newOptionsLocked,
+    });
   };
 
   const saveSettingsToDisk = async () => {
@@ -325,6 +508,16 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       };
 
       await invoke("save_settings", { settings });
+
+      // Update last saved state after successful save (deep copy)
+      setLastSavedState({
+        lmsForm: JSON.parse(JSON.stringify(lmsForm)),
+        form: JSON.parse(JSON.stringify(form)),
+        activeTab,
+        configLocked,
+        optionsLocked,
+      });
+
       appendOutput("✓ Settings saved successfully");
     } catch (error) {
       console.error("Failed to save settings:", error);
@@ -389,7 +582,10 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
       setShowTokenInstructions(true);
     } catch (error) {
       console.error("Failed to open token URL:", error);
-      alert(`Failed to open token URL: ${error}`);
+      await message(`Failed to open token URL: ${error}`, {
+        title: "Open token URL failed",
+        kind: "error",
+      });
     }
   };
 
@@ -640,6 +836,52 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
     setOutputText("");
   };
 
+  const handleClosePromptSave = async () => {
+    try {
+      console.info("[close prompt] Save and Close clicked");
+      await saveSettingsToDisk();
+      allowImmediateCloseRef.current = true;
+      await pendingCloseWindowRef.current?.close();
+    } catch (error) {
+      console.error("Error saving settings before close:", error);
+      await message("Failed to save settings. Please try closing again.", {
+        title: "Save failed",
+        kind: "error",
+      });
+    } finally {
+      resetClosePrompt();
+    }
+  };
+
+  const handleClosePromptDiscard = async () => {
+    try {
+      console.info("[close prompt] Close Without Saving clicked");
+      allowImmediateCloseRef.current = true;
+      await pendingCloseWindowRef.current?.close();
+    } finally {
+      resetClosePrompt();
+    }
+  };
+
+  const handleClosePromptCancel = () => {
+    console.info("[close prompt] Cancel clicked");
+    resetClosePrompt();
+  };
+
+  const handleExit = async () => {
+    const win = getCurrentWindow();
+
+    // If nothing is dirty, close immediately through Tauri (ensure closeRequested fires)
+    if (!isDirty) {
+      allowImmediateCloseRef.current = true;
+      await win.close();
+      return;
+    }
+
+    isClosingRef.current = true;
+    showClosePrompt(win);
+  };
+
   const openTokenDialog = () => {
     setTokenDialogValue(form.accessToken);
     setTokenDialogOpen(true);
@@ -663,6 +905,7 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         },
       }}
     >
+    <AntApp>
     <div className="repobee-container">
 
       {/* Tabs */}
@@ -907,6 +1150,11 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
             <div style={{ flex: 1 }} />
             <Button onClick={() => setSettingsMenuOpen(true)}>Settings...</Button>
             <Button onClick={saveSettingsToDisk}>Save Settings</Button>
+            {isDirty && (
+              <span style={{ fontSize: "11px", color: "#ff4d4f", fontWeight: 500 }}>
+                Unsaved changes
+              </span>
+            )}
             <Button onClick={clearHistory}>Clear History</Button>
           </Space>
 
@@ -1158,8 +1406,13 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         <div style={{ flex: 1 }} />
         <Button onClick={() => setSettingsMenuOpen(true)}>Settings...</Button>
         <Button onClick={saveSettingsToDisk}>Save Settings</Button>
+        {isDirty && (
+          <span style={{ fontSize: "11px", color: "#ff4d4f", fontWeight: 500 }}>
+            Unsaved changes
+          </span>
+        )}
         <Button onClick={clearHistory}>Clear History</Button>
-        <Button danger onClick={() => window.close()}>Exit</Button>
+        <Button danger onClick={handleExit}>Exit</Button>
       </Space>
 
       {/* Output Window */}
@@ -1306,7 +1559,28 @@ const [activeTab, setActiveTab] = useState<TabType>("lms");
         onSettingsLoaded={handleSettingsLoaded}
         onMessage={appendOutput}
       />
+      <Modal
+        open={closePromptVisible}
+        title="Unsaved Changes"
+        centered
+        maskClosable={false}
+        closable={false}
+        footer={[
+          <Button key="save" type="primary" onClick={handleClosePromptSave}>
+            Save and Close
+          </Button>,
+          <Button key="discard" danger onClick={handleClosePromptDiscard}>
+            Close Without Saving
+          </Button>,
+          <Button key="cancel" onClick={handleClosePromptCancel}>
+            Cancel
+          </Button>,
+        ]}
+      >
+        <p>You have unsaved changes. Choose how you want to close the app.</p>
+      </Modal>
     </div>
+    </AntApp>
     </ConfigProvider>
   );
 }
