@@ -193,26 +193,6 @@ export function SettingsMenu({
     });
   };
 
-  const handleResetLocation = async () => {
-    modal.confirm({
-      title: "Reset Location",
-      content: "Reset settings file location to default?\nCurrent settings will be preserved.",
-      okText: "Reset",
-      cancelText: "Cancel",
-      centered: true,
-      onOk: async () => {
-        try {
-          const newPath = await invoke<string>("reset_settings_location");
-          setSettingsPath(newPath);
-          showSuccessFlash();
-          onMessage(`✓ Settings location reset to: ${newPath}`);
-        } catch (error) {
-          onMessage(`✗ Failed to reset location: ${error}`);
-        }
-      },
-    });
-  };
-
   const handleViewSchema = async () => {
     if (!schema) {
       try {
@@ -353,16 +333,11 @@ export function SettingsMenu({
         {/* Reset */}
         <div>
           <Title level={5} style={{ marginBottom: 8 }}>Reset</Title>
-          <Space style={{ marginBottom: 8 }}>
-            <Button danger onClick={handleReset} size="small">
-              Reset to Defaults
-            </Button>
-            <Button onClick={handleResetLocation} size="small">
-              Reset Location
-            </Button>
-          </Space>
+          <Button danger onClick={handleReset} size="small" style={{ marginBottom: 8 }}>
+            Reset to Defaults
+          </Button>
           <Paragraph style={{ fontSize: 11, margin: 0, color: "#666" }}>
-            Reset and save all settings to default values, or reset and save the settings file location.
+            Reset and save all settings to default values.
           </Paragraph>
         </div>
 

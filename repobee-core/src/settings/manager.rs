@@ -1,7 +1,6 @@
 use super::atomic::atomic_write_json;
 use super::error::{ConfigError, ConfigResult};
 use super::gui::GuiSettings;
-use super::location::LocationManager;
 use super::normalization::Normalize;
 use super::validation::Validate;
 use schemars::schema_for;
@@ -12,7 +11,6 @@ use std::path::{Path, PathBuf};
 /// Settings manager for loading, saving, and managing application settings
 pub struct SettingsManager {
     config_dir: PathBuf,
-    location_manager: LocationManager,
 }
 
 impl SettingsManager {
@@ -29,8 +27,6 @@ impl SettingsManager {
     ///
     /// This is useful for testing or when you want to use a non-standard location.
     pub fn new_with_dir(config_dir: PathBuf) -> ConfigResult<Self> {
-        let location_manager = LocationManager::new(&config_dir, "repobee");
-
         // Ensure config directory exists
         fs::create_dir_all(&config_dir).map_err(|e| {
             ConfigError::CreateDirError {
@@ -41,7 +37,6 @@ impl SettingsManager {
 
         Ok(Self {
             config_dir,
-            location_manager,
         })
     }
 
@@ -113,23 +108,22 @@ impl SettingsManager {
     /// Load settings from disk
     /// Returns default settings if file doesn't exist (no error)
     pub fn load(&self) -> ConfigResult<GuiSettings> {
-        let location = self.location_manager.load()?;
-        let settings_file = location.settings_path();
+        let settings_file = self.settings_file_path();
 
         if !settings_file.exists() {
             // File doesn't exist, return defaults silently
             return Ok(GuiSettings::default());
         }
 
-        let contents = fs::read_to_string(settings_file).map_err(|e| ConfigError::ReadError {
-            path: settings_file.to_path_buf(),
+        let contents = fs::read_to_string(&settings_file).map_err(|e| ConfigError::ReadError {
+            path: settings_file.clone(),
             source: e,
         })?;
 
         // Parse as generic JSON first
         let json_value: Value =
             serde_json::from_str(&contents).map_err(|e| ConfigError::JsonParseError {
-                path: settings_file.to_path_buf(),
+                path: settings_file.clone(),
                 source: e,
             })?;
 
@@ -144,7 +138,7 @@ impl SettingsManager {
         // Deserialize to GuiSettings
         let mut settings: GuiSettings =
             serde_json::from_value(json_value).map_err(|e| ConfigError::JsonParseError {
-                path: settings_file.to_path_buf(),
+                path: settings_file,
                 source: e,
             })?;
 
@@ -174,11 +168,10 @@ impl SettingsManager {
             });
         }
 
-        let location = self.location_manager.load()?;
-        let settings_file = location.settings_path();
+        let settings_file = self.settings_file_path();
 
         // Use atomic write for safety
-        atomic_write_json(settings_file, settings)?;
+        atomic_write_json(&settings_file, settings)?;
 
         Ok(())
     }
@@ -202,10 +195,6 @@ impl SettingsManager {
 
         // Use atomic write for safety
         atomic_write_json(path, settings)?;
-
-        // Note: We do NOT update location_manager here because save_to is for
-        // exporting settings, not changing the active settings location.
-        // Only load_from (import) should update the location.
 
         Ok(())
     }
@@ -245,9 +234,6 @@ impl SettingsManager {
         settings.normalize();
         settings.validate()?;
 
-        // Update location file to point to this file
-        self.location_manager.save(path)?;
-
         Ok(settings)
     }
 
@@ -264,27 +250,14 @@ impl SettingsManager {
         Ok(settings)
     }
 
-    /// Reset settings file location to default
-    pub fn reset_location(&self) -> ConfigResult<()> {
-        self.location_manager.reset()
-    }
-
     /// Get the path to the settings file
     pub fn settings_file_path(&self) -> PathBuf {
-        self.location_manager
-            .load()
-            .map(|loc| loc.settings_path().to_path_buf())
-            .unwrap_or_else(|_| self.location_manager.default_settings_file_path().to_path_buf())
+        self.config_dir.join("repobee.json")
     }
 
     /// Get the config directory path
     pub fn config_dir_path(&self) -> &PathBuf {
         &self.config_dir
-    }
-
-    /// Get the location manager
-    pub fn location_manager(&self) -> &LocationManager {
-        &self.location_manager
     }
 
     /// Check if settings file exists
@@ -581,7 +554,5 @@ mod tests {
 
     // Note: Tests for save, save_to, and load_from behavior are omitted
     // because they require file system access to the user's config directory,
-    // which causes permission issues in unit tests. The behavior is verified
-    // by the code logic: save_to does NOT call location_manager.save(),
-    // while load_from DOES call location_manager.save().
+    // which causes permission issues in unit tests.
 }

@@ -36,10 +36,6 @@ struct Cli {
     #[arg(long, global = true)]
     reset: bool,
 
-    /// Reset settings file location to default
-    #[arg(long, global = true)]
-    reset_location: bool,
-
     /// Show current settings and exit
     #[arg(long, global = true)]
     show: bool,
@@ -146,9 +142,6 @@ enum SettingsAction {
 
     /// Reset settings to defaults
     Reset,
-
-    /// Reset settings file location
-    ResetLocation,
 
     /// Export settings to a file
     Export {
@@ -505,16 +498,6 @@ async fn main() -> Result<()> {
     // Create configuration manager
     let mut config_mgr = ConfigManager::new()?;
 
-    // Handle settings file location operations first
-    if cli.reset_location {
-        config_mgr
-            .settings_manager
-            .reset_location()
-            .context("Failed to reset location")?;
-        println!("Settings file location reset to default");
-        return Ok(());
-    }
-
     // Load configuration from specific file if requested
     if let Some(ref load_path) = cli.load {
         config_mgr.load(load_path)?;
@@ -555,14 +538,6 @@ async fn main() -> Result<()> {
             }
             SettingsAction::Reset => {
                 config_mgr.reset()?;
-                return Ok(());
-            }
-            SettingsAction::ResetLocation => {
-                config_mgr
-                    .settings_manager
-                    .reset_location()
-                    .context("Failed to reset location")?;
-                println!("Settings file location reset to default");
                 return Ok(());
             }
             SettingsAction::Export { path } => {

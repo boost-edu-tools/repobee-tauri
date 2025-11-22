@@ -5,36 +5,17 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
-use std::path::PathBuf;
 use tempfile::TempDir;
-
-// ===== Test Config Directory =====
-
-/// Get the test config directory path (within the repo, in sandbox)
-fn get_test_config_dir() -> PathBuf {
-    let mut path = std::env::current_dir().unwrap();
-    path.push(".test-config");
-    path
-}
-
-/// Setup test config directory and return it
-fn setup_test_config_dir() -> PathBuf {
-    let dir = get_test_config_dir();
-    // Clean up any previous test runs
-    if dir.exists() {
-        let _ = fs::remove_dir_all(&dir);
-    }
-    fs::create_dir_all(&dir).unwrap();
-    dir
-}
 
 // ===== Helper Functions =====
 
 fn cli() -> Command {
     let mut cmd = Command::cargo_bin("repobee-cli").unwrap();
-    // Set test config directory
-    let test_dir = setup_test_config_dir();
-    cmd.env("REPOBEE_CONFIG_DIR", test_dir.to_str().unwrap());
+    // Each test gets its own unique temp directory for isolation
+    // Use keep() to persist the directory - OS cleans up after tests
+    let test_dir = TempDir::new().unwrap();
+    let test_path = test_dir.keep(); // Persist directory and get path
+    cmd.env("REPOBEE_CONFIG_DIR", test_path.to_str().unwrap());
     cmd
 }
 

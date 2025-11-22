@@ -229,19 +229,6 @@ async fn get_settings_schema() -> Result<serde_json::Value, String> {
         .map_err(|e| format!("Failed to get schema: {}", e))
 }
 
-/// Reset settings file location to default
-#[tauri::command]
-async fn reset_settings_location() -> Result<String, String> {
-    let manager = SettingsManager::new()
-        .map_err(|e| format!("Failed to create settings manager: {}", e))?;
-
-    manager
-        .reset_location()
-        .map_err(|e| format!("Failed to reset location: {}", e))?;
-
-    Ok(manager.settings_file_path().to_string_lossy().to_string())
-}
-
 /// Load settings or return defaults (never fails)
 #[tauri::command]
 async fn load_settings_or_default() -> Result<GuiSettings, String> {
@@ -735,7 +722,6 @@ pub fn run() {
             import_settings,
             export_settings,
             get_settings_schema,
-            reset_settings_location,
             load_settings_or_default,
             list_profiles,
             get_active_profile,
